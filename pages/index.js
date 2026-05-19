@@ -324,13 +324,11 @@ function Dashboard({ token }) {
     { label:"Cash Balance",    value: s.cashBalance || 0, trend:0, color:C.sky,     icon:"▲" },
     { label:"Receivables",     value: s.arBalance   || 0, trend:0, color:C.violet,  icon:"▼" },
     { label:"Payables",        value: s.apBalance   || 0, trend:0, color:C.amber,   icon:"▲" },
-    { label:"VAT Payable",     value:84320, trend:0, color:C.teal,  icon:"─" },
-    { label:"Inventory Value", value:692400, trend:0, color:C.sky,   icon:"▲" },
+    { label:"VAT Payable",     value: s.vatPayable     || 0, trend:0, color:C.teal,  icon:"─" },
+    { label:"Inventory Value", value: s.inventoryValue || 0, trend:0, color:C.sky,   icon:"▲" },
   ];
 
-  const cfChartData = cashflow.length > 0
-    ? cashflow.map((row, i) => ({ w:`W${i+1}`, in: parseFloat(row.inflow)||0, out: parseFloat(row.outflow)||0 }))
-    : cashFlowData;
+  const cfChartData = cashflow.map((row, i) => ({ w:`W${i+1}`, in: parseFloat(row.inflow)||0, out: parseFloat(row.outflow)||0 }));
 
   const alertItems = alerts ? [
     alerts.overdueInvoices?.length && {
@@ -388,30 +386,36 @@ function Dashboard({ token }) {
       {/* Charts row */}
       <div style={{ display:"grid", gridTemplateColumns:"1.8fr 1fr", gap:14 }}>
         <Card>
-          <SHead>Revenue & Expense Trend</SHead>
-          <ResponsiveContainer width="100%" height={210}>
-            <AreaChart data={revenueData}>
-              <defs>
-                <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={C.teal} stopOpacity={0.35}/>
-                  <stop offset="95%" stopColor={C.teal} stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={C.rose} stopOpacity={0.25}/>
-                  <stop offset="95%" stopColor={C.rose} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={C.border}/>
-              <XAxis dataKey="m" tick={{fill:C.textDim,fontSize:10}} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v=>`${v/1000}K`} tick={{fill:C.textDim,fontSize:9}} axisLine={false} tickLine={false} width={38}/>
-              <Tooltip contentStyle={{background:C.surfaceB,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}
-                labelStyle={{color:C.text}} formatter={v=>[`AED ${v.toLocaleString()}`,""]}/>
-              <Area type="monotone" dataKey="rev" stroke={C.teal} strokeWidth={2} fill="url(#gRev)" name="Revenue"/>
-              <Area type="monotone" dataKey="exp" stroke={C.rose} strokeWidth={2} fill="url(#gExp)" name="Expenses"/>
-            </AreaChart>
-          </ResponsiveContainer>
+          <SHead>Cash Flow Trend</SHead>
+          {cfChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={210}>
+              <AreaChart data={cfChartData}>
+                <defs>
+                  <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={C.teal} stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor={C.teal} stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="gExp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={C.rose} stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor={C.rose} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.border}/>
+                <XAxis dataKey="w" tick={{fill:C.textDim,fontSize:10}} axisLine={false} tickLine={false}/>
+                <YAxis tickFormatter={v=>`${v/1000}K`} tick={{fill:C.textDim,fontSize:9}} axisLine={false} tickLine={false} width={38}/>
+                <Tooltip contentStyle={{background:C.surfaceB,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}
+                  labelStyle={{color:C.text}} formatter={v=>[`AED ${v.toLocaleString()}`,""]}/>
+                <Area type="monotone" dataKey="in" stroke={C.teal} strokeWidth={2} fill="url(#gRev)" name="Inflow"/>
+                <Area type="monotone" dataKey="out" stroke={C.rose} strokeWidth={2} fill="url(#gExp)" name="Outflow"/>
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{height:210,display:"flex",alignItems:"center",justifyContent:"center",color:C.textDim,fontSize:13}}>
+              No cash flow data yet
+            </div>
+          )}
           <div style={{ display:"flex", gap:18, marginTop:6 }}>
-            {[["Revenue",C.teal],["Expenses",C.rose]].map(([l,c])=>(
+            {[["Inflow",C.teal],["Outflow",C.rose]].map(([l,c])=>(
               <div key={l} style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <div style={{ width:8,height:8,borderRadius:2,background:c }}/>
                 <span style={{ fontSize:10, color:C.textMid }}>{l}</span>
@@ -420,22 +424,27 @@ function Dashboard({ token }) {
           </div>
         </Card>
         <Card>
-          <SHead>Expense Breakdown</SHead>
-          <PieChart width={170} height={170} style={{ margin:"0 auto" }}>
-            <Pie data={pieData} dataKey="val" cx={85} cy={85} innerRadius={48} outerRadius={75} strokeWidth={0}>
-              {pieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
-            </Pie>
-          </PieChart>
-          <div style={{ display:"flex", flexDirection:"column", gap:7, marginTop:6 }}>
-            {pieData.map(e=>(
-              <div key={e.name} style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                  <div style={{ width:7,height:7,borderRadius:2,background:e.color }}/>
-                  <span style={{ fontSize:11,color:C.textMid }}>{e.name}</span>
+          <SHead>Financial Summary</SHead>
+          <div style={{ display:"flex", flexDirection:"column", gap:12, marginTop:8 }}>
+            {[
+              { l:"Total Revenue",  v:s.revenue||0,   c:C.teal },
+              { l:"Total Expenses", v:s.expenses||0,  c:C.rose },
+              { l:"Net Profit",     v:s.profit||0,    c:C.emerald },
+              { l:"Receivables",    v:s.arBalance||0, c:C.violet },
+              { l:"Payables",       v:s.apBalance||0, c:C.amber },
+            ].map(item=>(
+              <div key={item.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                padding:"8px 12px",borderRadius:8,background:C.raised}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:8,height:8,borderRadius:2,background:item.c}}/>
+                  <span style={{fontSize:12,color:C.textMid}}>{item.l}</span>
                 </div>
-                <span style={{ fontSize:11,fontWeight:700,color:C.text,fontFamily:font }}>{e.val}%</span>
+                <span style={{fontSize:12,fontWeight:700,color:item.c,fontFamily:font}}>
+                  AED {item.v.toLocaleString()}
+                </span>
               </div>
             ))}
+            {!s.revenue && <div style={{textAlign:"center",fontSize:11,color:C.textDim,paddingTop:4}}>No transactions yet</div>}
           </div>
         </Card>
       </div>
@@ -916,7 +925,7 @@ function GeneralLedger({ token }) {
   const totalCr  = form.lines.reduce((a,l)=>a+parseFloat(l.credit||0),0);
   const balanced = Math.abs(totalDr-totalCr)<0.01 && totalDr>0;
 
-  const usedJournals = journals.length>0 ? journals : journalData;
+  const usedJournals = journals;
 
   const createJournal = async (post=false) => {
     if (!form.date||form.lines.length<2) { setError("Date and at least 2 lines are required."); return; }
@@ -1042,122 +1051,132 @@ function GeneralLedger({ token }) {
 /* ═══════════════════════════════════════════════════════════════
    PAGE: BANKING
 ═══════════════════════════════════════════════════════════════ */
-function Banking() {
-  const [activeAcc, setActiveAcc] = useState(0);
-  const [showRecon, setShowRecon] = useState(false);
+function Banking({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const [accounts, setAccounts] = useState([]);
+  const [txns, setTxns] = useState([]);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [showNew, setShowNew] = useState(false);
+  const [form, setForm] = useState({ name:"", bank_name:"", account_number:"", currency:"AED", balance:"0" });
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg,ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+
+  const fetchAccounts = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/api/banking`, { headers:h });
+      const d = await r.json();
+      setAccounts(Array.isArray(d) ? d : []);
+    } catch { setAccounts([]); } finally { setLoading(false); }
+  };
+  const fetchTxns = async (accId) => {
+    if (!accId) return;
+    try {
+      const r = await fetch(`${API_URL}/api/banking/${accId}/transactions`, { headers:h });
+      const d = await r.json();
+      setTxns(Array.isArray(d) ? d : []);
+    } catch { setTxns([]); }
+  };
+  useEffect(() => { fetchAccounts(); }, [token]);
+  useEffect(() => { if (accounts[activeIdx]) fetchTxns(accounts[activeIdx].id); }, [accounts, activeIdx]);
+
+  const setL = (k,v) => setForm(f => ({...f,[k]:v}));
+  const saveAccount = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch(`${API_URL}/api/banking`, { method:"POST", headers:{...h,"Content-Type":"application/json"}, body:JSON.stringify(form) });
+      if (!r.ok) throw new Error();
+      showToast("Bank account added"); setShowNew(false); setForm({ name:"",bank_name:"",account_number:"",currency:"AED",balance:"0" }); fetchAccounts();
+    } catch { showToast("Failed to add account",false); } finally { setSaving(false); }
+  };
+
+  const accColors = [C.teal, C.sky, C.violet, C.amber, C.emerald];
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Banking</h2>
-          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>Bank accounts, reconciliation & statement imports</p>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{accounts.length} account{accounts.length!==1?"s":""} connected</p>
         </div>
-        <div style={{ display:"flex", gap:10 }}>
-          <Btn variant="ghost">↑ Import Statement</Btn>
-          <Btn onClick={()=>setShowRecon(true)}>Reconcile</Btn>
-        </div>
+        <button onClick={()=>setShowNew(true)} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ Add Account</button>
       </div>
 
-      {/* Bank Cards */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14 }}>
-        {bankAccounts.map((acc,i)=>(
-          <div key={i} onClick={()=>setActiveAcc(i)} style={{
-            padding:20, borderRadius:14, cursor:"pointer", position:"relative", overflow:"hidden",
-            background:`linear-gradient(135deg, ${acc.color}22, ${acc.color}08)`,
-            border:`1px solid ${activeAcc===i?acc.color:`${acc.color}30`}`,
-            transition:"all 0.2s",
-          }}>
-            <div style={{ position:"absolute", top:-20, right:-20, width:80, height:80, borderRadius:"50%",
-              background:acc.color, opacity:0.1, filter:"blur(20px)" }}/>
-            <div style={{ fontSize:10, color:acc.color, fontWeight:700, letterSpacing:"0.07em",
-              textTransform:"uppercase", fontFamily:font, marginBottom:10 }}>{acc.name}</div>
-            <div style={{ fontSize:10, color:C.textMid, marginBottom:4 }}>{acc.number}</div>
-            <div style={{ fontSize:26, fontWeight:800, color:C.text, fontFamily:font, letterSpacing:"-0.02em" }}>
-              {acc.balance.toLocaleString()}
-            </div>
-            <div style={{ fontSize:10, color:C.textMid, marginTop:2 }}>{acc.currency}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Transactions */}
-      <Card style={{ padding:0, overflow:"hidden" }}>
-        <div style={{ padding:"16px 20px", borderBottom:`1px solid ${C.border}`,
-          display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <span style={{ fontSize:12, fontWeight:700, color:C.text, fontFamily:font }}>
-            {bankAccounts[activeAcc].name} — Transactions
-          </span>
-          <span style={{ fontSize:11, color:C.textMid }}>
-            {bankTxns.filter(t=>t.matched).length}/{bankTxns.length} matched
-          </span>
+      {loading ? <div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div> : accounts.length === 0 ? (
+        <div style={{textAlign:"center",padding:60,color:C.textMid}}>
+          <div style={{fontSize:40,marginBottom:12}}>🏦</div>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8}}>No bank accounts yet</div>
+          <div style={{fontSize:13,marginBottom:20}}>Add your first bank account to start tracking transactions.</div>
+          <button onClick={()=>setShowNew(true)} style={{padding:"10px 24px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer"}}>+ Add Bank Account</button>
         </div>
-        <table style={{ width:"100%", borderCollapse:"collapse" }}>
-          <thead><tr>
-            <TH>Date</TH><TH>Reference</TH><TH>Description</TH>
-            <TH>Amount</TH><TH>Type</TH><TH>Matched To</TH>
-          </tr></thead>
-          <tbody>
-            {bankTxns.map((t,i)=>(
-              <tr key={i}
-                onMouseEnter={e=>e.currentTarget.style.background=C.raised}
-                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <TD style={{ color:C.textMid }}>{t.date}</TD>
-                <TD><span style={{ fontFamily:font, color:C.textMid, fontSize:11 }}>{t.ref}</span></TD>
-                <TD>{t.description}</TD>
-                <TD>
-                  <span style={{ fontFamily:font, fontWeight:700, color:t.amount>0?C.emerald:C.rose }}>
-                    {t.amount>0?"+":""}AED {Math.abs(t.amount).toLocaleString()}
-                  </span>
-                </TD>
-                <TD><Pill status={t.type}/></TD>
-                <TD>
-                  {t.matched
-                    ? <span style={{ fontSize:11, color:C.teal, fontFamily:font }}>{t.matched}</span>
-                    : <button style={{ fontSize:10, color:C.amber, background:`${C.amber}15`,
-                        border:`1px solid ${C.amber}30`, borderRadius:6, padding:"3px 10px", cursor:"pointer" }}>
-                        Match
-                      </button>
-                  }
-                </TD>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Modal open={showRecon} onClose={()=>setShowRecon(false)} title="Bank Reconciliation" width={560}>
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          <Select label="Bank Account" value={bankAccounts[activeAcc].name} onChange={()=>{}} options={bankAccounts.map(a=>a.name)}/>
-          <Input label="Statement Date" value="" onChange={()=>{}} type="date"/>
-          <Input label="Closing Balance per Bank Statement (AED)" value="" onChange={()=>{}} type="number" placeholder="0.00"/>
-          <div style={{ padding:16, background:C.surface, borderRadius:10 }}>
-            {[
-              ["Book Balance (GL)", "1,240,000"],
-              ["+ Outstanding Deposits", "48,500"],
-              ["− Outstanding Cheques", "24,800"],
-              ["Adjusted Book Balance", "1,263,700"],
-              ["Bank Statement Balance", "1,263,700"],
-              ["Difference", "0"],
-            ].map(([l,v],i)=>(
-              <div key={i} style={{ display:"flex", justifyContent:"space-between",
-                padding:"8px 0", borderBottom:i<5?`1px solid ${C.border}`:"none",
-                fontWeight:i===5||i===4?700:400 }}>
-                <span style={{ fontSize:12, color:i>=4?C.text:C.textMid }}>{l}</span>
-                <span style={{ fontSize:12, fontFamily:font, color:i===5?C.emerald:C.text }}>AED {v}</span>
+      ) : (
+        <>
+          <div style={{ display:"grid", gridTemplateColumns:`repeat(${Math.min(accounts.length,3)},1fr)`, gap:14 }}>
+            {accounts.map((acc,i)=>(
+              <div key={acc.id} onClick={()=>setActiveIdx(i)} style={{
+                padding:20, borderRadius:14, cursor:"pointer", position:"relative", overflow:"hidden",
+                background:`linear-gradient(135deg, ${accColors[i%accColors.length]}22, ${accColors[i%accColors.length]}08)`,
+                border:`1px solid ${activeIdx===i?accColors[i%accColors.length]:`${accColors[i%accColors.length]}30`}`,
+              }}>
+                <div style={{fontSize:10,color:accColors[i%accColors.length],fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",fontFamily:font,marginBottom:10}}>{acc.name}</div>
+                {acc.bank_name && <div style={{fontSize:10,color:C.textMid,marginBottom:4}}>{acc.bank_name}</div>}
+                {acc.account_number && <div style={{fontSize:10,color:C.textMid,marginBottom:4}}>{acc.account_number}</div>}
+                <div style={{fontSize:26,fontWeight:800,color:C.text,fontFamily:font,letterSpacing:"-0.02em"}}>{parseFloat(acc.balance).toLocaleString()}</div>
+                <div style={{fontSize:10,color:C.textMid,marginTop:2}}>{acc.currency}</div>
               </div>
             ))}
           </div>
-          <div style={{ padding:12, background:`${C.emerald}10`, border:`1px solid ${C.emerald}30`,
-            borderRadius:8, fontSize:12, color:C.emerald }}>
-            ✓ Account is fully reconciled for this period.
+
+          <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+            <div style={{padding:"14px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,fontWeight:700,color:C.text}}>{accounts[activeIdx]?.name} — Transactions</span>
+              <span style={{fontSize:11,color:C.textMid}}>{txns.length} transaction{txns.length!==1?"s":""}</span>
+            </div>
+            {txns.length === 0 ? (
+              <div style={{textAlign:"center",padding:40,color:C.textMid,fontSize:13}}>No transactions recorded for this account</div>
+            ) : (
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead><tr style={{background:C.raised}}>
+                  {["Date","Description","Amount","Type","Reconciled"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}
+                </tr></thead>
+                <tbody>{txns.map(t=>(
+                  <tr key={t.id} style={{borderTop:`1px solid ${C.border}`}}>
+                    <td style={{padding:"10px 14px",color:C.textMid}}>{t.date}</td>
+                    <td style={{padding:"10px 14px"}}>{t.description||"—"}</td>
+                    <td style={{padding:"10px 14px",fontWeight:700,color:t.type==="credit"?C.emerald:C.rose,fontFamily:font}}>
+                      {t.type==="credit"?"+":"−"} {parseFloat(t.amount).toLocaleString()}
+                    </td>
+                    <td style={{padding:"10px 14px"}}><span style={{background:t.type==="credit"?`${C.emerald}18`:`${C.rose}18`,color:t.type==="credit"?C.emerald:C.rose,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{t.type}</span></td>
+                    <td style={{padding:"10px 14px",color:t.reconciled?C.emerald:C.textDim,fontSize:12}}>{t.reconciled?"✓ Reconciled":"Unreconciled"}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            )}
           </div>
-          <div style={{ display:"flex", gap:10 }}>
-            <Btn variant="ghost" onClick={()=>setShowRecon(false)}>Cancel</Btn>
-            <Btn>Complete Reconciliation</Btn>
+        </>
+      )}
+
+      {showNew && <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:440}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>Add Bank Account</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+            {[["Account Name *","name","text"],["Bank Name","bank_name","text"],["Account Number","account_number","text"],["Currency","currency","text"],["Opening Balance","balance","number"]].map(([label,key,type])=>(
+              <div key={key} style={{gridColumn:key==="name"?"span 2":"auto"}}>
+                <label style={{fontSize:11,fontWeight:700,color:C.textMid}}>{label.toUpperCase()}</label>
+                <input type={type} value={form[key]} onChange={e=>setL(key,e.target.value)}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} />
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setShowNew(false)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={saveAccount} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Add Account"}</button>
           </div>
         </div>
-      </Modal>
+      </div>}
     </div>
   );
 }
@@ -1165,9 +1184,117 @@ function Banking() {
 /* ═══════════════════════════════════════════════════════════════
    PAGE: INVENTORY
 ═══════════════════════════════════════════════════════════════ */
-function Inventory() {
+function Inventory({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
-  const totalVal = inventoryItems.reduce((a,i)=>a+i.value,0);
+  const [form, setForm] = useState({ sku:"", name:"", category:"", unit_cost:"0", selling_price:"0", quantity:"0", reorder_level:"0", valuation_method:"FIFO" });
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg,ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+
+  const fetchItems = async () => {
+    setLoading(true);
+    try { const r=await fetch(`${API_URL}/api/inventory`,{headers:h}); const d=await r.json(); setItems(d.data||[]); }
+    catch { setItems([]); } finally { setLoading(false); }
+  };
+  useEffect(()=>{ fetchItems(); },[token]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const saveItem = async () => {
+    setSaving(true);
+    try {
+      const r=await fetch(`${API_URL}/api/inventory`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(form)});
+      if(!r.ok) throw new Error();
+      showToast("Item added"); setShowNew(false); fetchItems();
+    } catch { showToast("Failed to add item",false); } finally { setSaving(false); }
+  };
+
+  const totalVal = items.reduce((a,i)=>a+parseFloat(i.unit_cost||0)*parseFloat(i.quantity||0),0);
+  const lowStock = items.filter(i=>parseFloat(i.quantity||0)<=parseFloat(i.reorder_level||0));
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Inventory</h2>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{items.length} items · AED {totalVal.toLocaleString()} total value</p>
+        </div>
+        <button onClick={()=>setShowNew(true)} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ New Item</button>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+        {[
+          { l:"Total SKUs",    v:items.length,   color:C.teal },
+          { l:"Total Value",   v:`AED ${(totalVal/1000).toFixed(1)}K`, color:C.sky },
+          { l:"Low Stock",     v:lowStock.length, color:C.rose },
+          { l:"Categories",    v:new Set(items.map(i=>i.category).filter(Boolean)).size, color:C.emerald },
+        ].map((s,i)=>(
+          <div key={i} style={{background:C.surface,borderRadius:12,padding:"14px 18px",border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:10,color:C.textMid,letterSpacing:"0.07em",textTransform:"uppercase",fontFamily:font}}>{s.l}</div>
+            <div style={{fontSize:22,fontWeight:800,color:s.color,marginTop:6,fontFamily:font}}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+
+      {loading ? <div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div> : items.length === 0 ? (
+        <div style={{textAlign:"center",padding:60,color:C.textMid}}>
+          <div style={{fontSize:40,marginBottom:12}}>📦</div>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8}}>No inventory items yet</div>
+          <div style={{fontSize:13,marginBottom:20}}>Add your first item to start tracking stock.</div>
+          <button onClick={()=>setShowNew(true)} style={{padding:"10px 24px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer"}}>+ Add Item</button>
+        </div>
+      ) : (
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>
+              {["SKU","Item Name","Category","Qty","Reorder","Cost","Price","Value","Status"].map(h=>(
+                <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>{items.map(item=>{
+              const val=parseFloat(item.unit_cost||0)*parseFloat(item.quantity||0);
+              const isLow=parseFloat(item.quantity||0)<=parseFloat(item.reorder_level||0);
+              return(
+                <tr key={item.id} style={{borderTop:`1px solid ${C.border}`}}>
+                  <td style={{padding:"10px 14px",fontFamily:font,color:C.teal,fontSize:11}}>{item.sku||"—"}</td>
+                  <td style={{padding:"10px 14px",fontWeight:600}}>{item.name}</td>
+                  <td style={{padding:"10px 14px",color:C.textMid,fontSize:12}}>{item.category||"—"}</td>
+                  <td style={{padding:"10px 14px",fontWeight:700,color:isLow?C.rose:C.text}}>{parseFloat(item.quantity||0).toLocaleString()}</td>
+                  <td style={{padding:"10px 14px",color:C.textMid}}>{parseFloat(item.reorder_level||0)}</td>
+                  <td style={{padding:"10px 14px",fontFamily:font}}>AED {parseFloat(item.unit_cost||0).toLocaleString()}</td>
+                  <td style={{padding:"10px 14px",fontFamily:font,color:C.emerald}}>AED {parseFloat(item.selling_price||0).toLocaleString()}</td>
+                  <td style={{padding:"10px 14px",fontFamily:font,fontWeight:700}}>AED {val.toLocaleString()}</td>
+                  <td style={{padding:"10px 14px"}}><span style={{background:isLow?`${C.rose}18`:`${C.emerald}18`,color:isLow?C.rose:C.emerald,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{isLow?"Low Stock":"In Stock"}</span></td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+      )}
+
+      {showNew && <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:520}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>New Inventory Item</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+            {[["SKU Code","sku","text"],["Item Name *","name","text"],["Category","category","text"],["Valuation","valuation_method","text"],["Cost Price","unit_cost","number"],["Selling Price","selling_price","number"],["Opening Stock","quantity","number"],["Reorder Level","reorder_level","number"]].map(([label,key,type])=>(
+              <div key={key}>
+                <label style={{fontSize:11,fontWeight:700,color:C.textMid}}>{label.toUpperCase()}</label>
+                <input type={type} value={form[key]} onChange={e=>setL(key,e.target.value)}
+                  style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} />
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setShowNew(false)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={saveItem} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Save Item"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
@@ -1252,115 +1379,168 @@ function Inventory() {
 /* ═══════════════════════════════════════════════════════════════
    PAGE: VAT
 ═══════════════════════════════════════════════════════════════ */
-function VAT() {
-  const outputTotal = vatData.outputVAT.reduce((a,r)=>a+r.vat,0);
-  const inputTotal  = vatData.inputVAT.reduce((a,r)=>a+r.vat,0);
+function VAT({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const [returns, setReturns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showNew, setShowNew] = useState(false);
+  const [form, setForm] = useState({ period_start:"", period_end:"" });
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg,ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+
+  const fetchReturns = async () => {
+    setLoading(true);
+    try { const r=await fetch(`${API_URL}/api/vat`,{headers:h}); const d=await r.json(); setReturns(Array.isArray(d)?d:[]); }
+    catch { setReturns([]); } finally { setLoading(false); }
+  };
+  useEffect(()=>{ fetchReturns(); },[token]);
+
+  const generate = async () => {
+    setSaving(true);
+    try {
+      const r=await fetch(`${API_URL}/api/vat`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(form)});
+      if(!r.ok) throw new Error((await r.json()).error||"Failed");
+      showToast("VAT return generated"); setShowNew(false); fetchReturns();
+    } catch(e) { showToast(e.message,false); } finally { setSaving(false); }
+  };
+  const submit = async (id) => {
+    try {
+      const r=await fetch(`${API_URL}/api/vat/${id}/submit`,{method:"PUT",headers:h});
+      if(!r.ok) throw new Error();
+      showToast("Submitted"); fetchReturns();
+    } catch { showToast("Failed to submit",false); }
+  };
+
+  const latest = returns[0];
+  const outputTotal = parseFloat(latest?.output_vat||0);
+  const inputTotal  = parseFloat(latest?.input_vat||0);
   const netVAT = outputTotal - inputTotal;
+
+  if (loading) return <div style={{ color:C.textMid, padding:40, textAlign:"center" }}>Loading VAT returns…</div>;
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:2000, background:toast.ok?C.emerald:C.rose, color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13, fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.15)" }}>{toast.ok?"✓":"✗"} {toast.msg}</div>}
+
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>VAT Return</h2>
-          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{vatData.period} · UAE FTA Submission</p>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{returns.length} return{returns.length!==1?"s":""} · UAE FTA Submission</p>
         </div>
-        <div style={{ display:"flex", gap:10 }}>
-          <Btn variant="ghost">Export XML</Btn>
-          <Btn>Submit to FTA</Btn>
-        </div>
+        <Btn onClick={()=>setShowNew(true)}>+ Generate Return</Btn>
       </div>
 
-      {/* Net VAT Banner */}
-      <div style={{ padding:24, borderRadius:14,
-        background:`linear-gradient(135deg, ${C.teal}18, ${C.sky}08)`,
-        border:`1px solid ${C.teal}40`,
-        display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div>
-          <div style={{ fontSize:11, color:C.teal, fontWeight:700, letterSpacing:"0.08em",
-            textTransform:"uppercase", marginBottom:6 }}>Net VAT Payable — {vatData.period}</div>
-          <div style={{ fontSize:36, fontWeight:900, color:C.text, fontFamily:font, letterSpacing:"-0.02em" }}>
-            AED {netVAT.toLocaleString()}
-          </div>
-          <div style={{ fontSize:12, color:C.textMid, marginTop:6 }}>Due: 28 January 2025</div>
-        </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10, textAlign:"right" }}>
-          <div>
-            <div style={{ fontSize:10, color:C.textMid, marginBottom:2 }}>TRN</div>
-            <div style={{ fontFamily:font, fontSize:14, color:C.text, fontWeight:700 }}>100234567800003</div>
-          </div>
-          <div style={{ padding:"8px 14px", background:`${C.amber}18`, border:`1px solid ${C.amber}40`,
-            borderRadius:8, fontSize:12, color:C.amber, fontWeight:700 }}>
-            ⏳ Pending Submission
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-        {/* Output VAT */}
+      {showNew && (
         <Card>
-          <SHead>Output VAT (Sales)</SHead>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr><TH>Description</TH><TH>Taxable Amt</TH><TH>VAT</TH></tr></thead>
-            <tbody>
-              {vatData.outputVAT.map((r,i)=>(
-                <tr key={i}>
-                  <TD>{r.desc}</TD>
-                  <TD><span style={{ fontFamily:font }}>AED {r.taxableAmt.toLocaleString()}</span></TD>
-                  <TD><span style={{ fontFamily:font, color:C.rose, fontWeight:700 }}>AED {r.vat.toLocaleString()}</span></TD>
-                </tr>
-              ))}
-              <tr style={{ background:C.raised }}>
-                <TD><strong>Total Output VAT</strong></TD>
-                <TD><strong style={{ fontFamily:font }}>AED {vatData.outputVAT.reduce((a,r)=>a+r.taxableAmt,0).toLocaleString()}</strong></TD>
-                <TD><strong style={{ fontFamily:font, color:C.rose }}>AED {outputTotal.toLocaleString()}</strong></TD>
-              </tr>
-            </tbody>
-          </table>
+          <SHead>Generate New VAT Return</SHead>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
+            <div>
+              <label style={{ fontSize:11, color:C.textMid, display:"block", marginBottom:4 }}>Period Start</label>
+              <input type="date" value={form.period_start} onChange={e=>setForm(p=>({...p,period_start:e.target.value}))}
+                style={{ width:"100%", padding:"8px 12px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:13 }}/>
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:C.textMid, display:"block", marginBottom:4 }}>Period End</label>
+              <input type="date" value={form.period_end} onChange={e=>setForm(p=>({...p,period_end:e.target.value}))}
+                style={{ width:"100%", padding:"8px 12px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:13 }}/>
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:10 }}>
+            <Btn onClick={generate} disabled={saving}>{saving?"Generating…":"Generate"}</Btn>
+            <Btn variant="ghost" onClick={()=>setShowNew(false)}>Cancel</Btn>
+          </div>
         </Card>
+      )}
 
-        {/* Input VAT */}
+      {returns.length===0 ? (
         <Card>
-          <SHead>Input VAT (Purchases)</SHead>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr><TH>Description</TH><TH>Taxable Amt</TH><TH>VAT</TH></tr></thead>
-            <tbody>
-              {vatData.inputVAT.map((r,i)=>(
-                <tr key={i}>
-                  <TD>{r.desc}</TD>
-                  <TD><span style={{ fontFamily:font }}>AED {r.taxableAmt.toLocaleString()}</span></TD>
-                  <TD><span style={{ fontFamily:font, color:C.emerald, fontWeight:700 }}>AED {r.vat.toLocaleString()}</span></TD>
-                </tr>
-              ))}
-              <tr style={{ background:C.raised }}>
-                <TD><strong>Total Input VAT</strong></TD>
-                <TD><strong style={{ fontFamily:font }}>AED {vatData.inputVAT.reduce((a,r)=>a+r.taxableAmt,0).toLocaleString()}</strong></TD>
-                <TD><strong style={{ fontFamily:font, color:C.emerald }}>AED {inputTotal.toLocaleString()}</strong></TD>
-              </tr>
-            </tbody>
-          </table>
+          <div style={{ textAlign:"center", padding:"48px 0" }}>
+            <div style={{ fontSize:36, marginBottom:12 }}>🧾</div>
+            <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:6 }}>No VAT returns yet</div>
+            <div style={{ fontSize:13, color:C.textMid, marginBottom:20 }}>Generate your first VAT return to get started.</div>
+            <Btn onClick={()=>setShowNew(true)}>+ Generate Return</Btn>
+          </div>
         </Card>
-      </div>
-
-      {/* Summary */}
-      <Card>
-        <SHead>VAT Return Summary</SHead>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:20 }}>
-          {[
-            { l:"Total Output VAT", v:outputTotal, color:C.rose },
-            { l:"Total Input VAT (Recoverable)", v:inputTotal, color:C.emerald },
-            { l:"Net VAT Payable", v:netVAT, color:C.amber },
-          ].map((s,i)=>(
-            <div key={i} style={{ padding:16, background:C.surface, borderRadius:10,
-              border:`1px solid ${s.color}30`, textAlign:"center" }}>
-              <div style={{ fontSize:10, color:C.textMid, marginBottom:8, textTransform:"uppercase",
-                letterSpacing:"0.07em" }}>{s.l}</div>
-              <div style={{ fontSize:24, fontWeight:900, color:s.color, fontFamily:font }}>
-                AED {s.v.toLocaleString()}
+      ) : (
+        <>
+          {/* Latest return banner */}
+          <div style={{ padding:24, borderRadius:14,
+            background:`linear-gradient(135deg, ${C.teal}18, ${C.sky}08)`,
+            border:`1px solid ${C.teal}40`,
+            display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <div>
+              <div style={{ fontSize:11, color:C.teal, fontWeight:700, letterSpacing:"0.08em",
+                textTransform:"uppercase", marginBottom:6 }}>
+                Net VAT Payable — {latest?.period_start ? `${latest.period_start} – ${latest.period_end}` : "Latest Period"}
+              </div>
+              <div style={{ fontSize:36, fontWeight:900, color:C.text, fontFamily:font, letterSpacing:"-0.02em" }}>
+                AED {netVAT.toLocaleString()}
+              </div>
+              <div style={{ fontSize:12, color:C.textMid, marginTop:6 }}>
+                Status: {latest?.status || "draft"}
               </div>
             </div>
-          ))}
-        </div>
-      </Card>
+            <div style={{ display:"flex", flexDirection:"column", gap:10, textAlign:"right" }}>
+              <div style={{ padding:"8px 14px",
+                background:latest?.status==="submitted"?`${C.emerald}18`:`${C.amber}18`,
+                border:`1px solid ${latest?.status==="submitted"?C.emerald:C.amber}40`,
+                borderRadius:8, fontSize:12,
+                color:latest?.status==="submitted"?C.emerald:C.amber, fontWeight:700 }}>
+                {latest?.status==="submitted" ? "✓ Submitted" : "⏳ Draft"}
+              </div>
+              {latest?.status!=="submitted" && (
+                <Btn onClick={()=>submit(latest.id)}>Submit to FTA</Btn>
+              )}
+            </div>
+          </div>
+
+          {/* Summary cards */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14 }}>
+            {[
+              { l:"Total Output VAT", v:outputTotal, color:C.rose },
+              { l:"Total Input VAT (Recoverable)", v:inputTotal, color:C.emerald },
+              { l:"Net VAT Payable", v:netVAT, color:C.amber },
+            ].map((s,i)=>(
+              <div key={i} style={{ padding:16, background:C.surface, borderRadius:10,
+                border:`1px solid ${s.color}30`, textAlign:"center" }}>
+                <div style={{ fontSize:10, color:C.textMid, marginBottom:8, textTransform:"uppercase",
+                  letterSpacing:"0.07em" }}>{s.l}</div>
+                <div style={{ fontSize:24, fontWeight:900, color:s.color, fontFamily:font }}>
+                  AED {s.v.toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* All returns list */}
+          <Card>
+            <SHead>All VAT Returns</SHead>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr><TH>Period</TH><TH>Output VAT</TH><TH>Input VAT</TH><TH>Net Payable</TH><TH>Status</TH><TH>Action</TH></tr></thead>
+              <tbody>
+                {returns.map((r,i)=>{
+                  const net = parseFloat(r.output_vat||0) - parseFloat(r.input_vat||0);
+                  return (
+                    <tr key={i} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <TD>{r.period_start} – {r.period_end}</TD>
+                      <TD><span style={{ fontFamily:font, color:C.rose }}>AED {parseFloat(r.output_vat||0).toLocaleString()}</span></TD>
+                      <TD><span style={{ fontFamily:font, color:C.emerald }}>AED {parseFloat(r.input_vat||0).toLocaleString()}</span></TD>
+                      <TD><span style={{ fontFamily:font, fontWeight:700 }}>AED {net.toLocaleString()}</span></TD>
+                      <TD><span style={{ padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700,
+                        background:r.status==="submitted"?`${C.emerald}18`:`${C.amber}18`,
+                        color:r.status==="submitted"?C.emerald:C.amber }}>
+                        {r.status==="submitted"?"Submitted":"Draft"}
+                      </span></TD>
+                      <TD>{r.status!=="submitted" && <Btn variant="ghost" onClick={()=>submit(r.id)}>Submit</Btn>}</TD>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
@@ -1368,8 +1548,52 @@ function VAT() {
 /* ═══════════════════════════════════════════════════════════════
    PAGE: REPORTS
 ═══════════════════════════════════════════════════════════════ */
-function Reports() {
+function Reports({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
   const [active, setActive] = useState("pl");
+
+  const today = new Date().toISOString().slice(0,10);
+  const firstOfYear = `${new Date().getFullYear()}-01-01`;
+
+  const [plFrom, setPlFrom]   = useState(firstOfYear);
+  const [plTo,   setPlTo]     = useState(today);
+  const [bsDate, setBsDate]   = useState(today);
+
+  const [plData,    setPlData]    = useState(null);
+  const [bsData,    setBsData]    = useState(null);
+  const [agingData, setAgingData] = useState([]);
+  const [loading,   setLoading]   = useState(false);
+
+  const fetchPL = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/api/reports/profit-loss?from=${plFrom}&to=${plTo}`, { headers:h });
+      const d = await r.json();
+      setPlData(r.ok ? d : null);
+    } catch { setPlData(null); } finally { setLoading(false); }
+  };
+
+  const fetchBS = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/api/reports/balance-sheet?as_at=${bsDate}`, { headers:h });
+      const d = await r.json();
+      setBsData(r.ok ? d : null);
+    } catch { setBsData(null); } finally { setLoading(false); }
+  };
+
+  const fetchAging = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/api/reports/ar-aging`, { headers:h });
+      const d = await r.json();
+      setAgingData(Array.isArray(d) ? d : []);
+    } catch { setAgingData([]); } finally { setLoading(false); }
+  };
+
+  useEffect(() => { if (active==="pl")    fetchPL();    }, [active, token]);
+  useEffect(() => { if (active==="bs")    fetchBS();    }, [active, token]);
+  useEffect(() => { if (active==="aging") fetchAging(); }, [active, token]);
 
   const tabs = [
     { id:"pl",   label:"Profit & Loss" },
@@ -1377,16 +1601,20 @@ function Reports() {
     { id:"aging",label:"AR Aging" },
   ];
 
+  const EmptyMsg = () => (
+    <div style={{ textAlign:"center", padding:"40px 0", color:C.textMid, fontSize:14 }}>
+      No transactions found for this period.
+    </div>
+  );
+
+  const fmtAED = v => `AED ${(parseFloat(v)||0).toLocaleString()}`;
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Financial Reports</h2>
-          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>Period: Jan – Dec 2024</p>
-        </div>
-        <div style={{ display:"flex", gap:10 }}>
-          <Btn variant="ghost">↓ PDF</Btn>
-          <Btn variant="ghost">↓ Excel</Btn>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>Real-time data from your accounts</p>
         </div>
       </div>
 
@@ -1402,138 +1630,167 @@ function Reports() {
 
       {active==="pl" && (
         <Card>
-          <SHead>Profit & Loss Statement — FY 2024</SHead>
-          <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-            {reportPL.map((section,i)=>(
-              <div key={i}>
-                {section.type==="subtotal"
-                  ? <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-                      padding:"12px 16px", borderRadius:10,
-                      background: section.total>0?`${C.teal}12`:`${C.rose}12`,
-                      border:`1px solid ${section.total>0?C.teal:C.rose}30`, margin:"4px 0" }}>
-                      <span style={{ fontWeight:800, color:C.text, fontSize:14 }}>{section.label}</span>
-                      <span style={{ fontFamily:font, fontWeight:900, fontSize:18,
-                        color:section.total>0?C.teal:C.rose }}>
-                        AED {section.total.toLocaleString()}
-                      </span>
-                    </div>
-                  : <>
-                      <div style={{ fontSize:11, fontWeight:700, color:C.textMid, letterSpacing:"0.07em",
-                        textTransform:"uppercase", marginBottom:8, paddingLeft:4 }}>{section.label}</div>
-                      {section.items?.map((item,j)=>(
-                        <div key={j} style={{ display:"flex", justifyContent:"space-between",
-                          padding:"8px 12px", borderRadius:8, cursor:"pointer" }}
-                          onMouseEnter={e=>e.currentTarget.style.background=C.raised}
-                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <span style={{ fontSize:13, color:C.text }}>{item.name}</span>
-                          <span style={{ fontFamily:font, fontSize:13, color:section.type==="income"?C.emerald:C.rose }}>
-                            AED {item.amount.toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
-                      <div style={{ display:"flex", justifyContent:"space-between",
-                        padding:"8px 12px", borderTop:`1px solid ${C.border}`, marginTop:4 }}>
-                        <span style={{ fontWeight:700, color:C.text }}>Total {section.label}</span>
-                        <span style={{ fontFamily:font, fontWeight:700,
-                          color:section.type==="income"?C.emerald:C.rose }}>
-                          AED {section.total.toLocaleString()}
-                        </span>
-                      </div>
-                    </>
-                }
-              </div>
-            ))}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+            <SHead>Profit & Loss Statement</SHead>
+            <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+              <input type="date" value={plFrom} onChange={e=>setPlFrom(e.target.value)}
+                style={{ padding:"6px 10px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:12 }}/>
+              <span style={{ color:C.textMid, fontSize:12 }}>to</span>
+              <input type="date" value={plTo} onChange={e=>setPlTo(e.target.value)}
+                style={{ padding:"6px 10px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:12 }}/>
+              <Btn onClick={fetchPL}>Run</Btn>
+            </div>
           </div>
+          {loading ? <div style={{ color:C.textMid, padding:20 }}>Loading…</div>
+          : !plData ? <EmptyMsg/>
+          : (
+            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+              {/* Revenue */}
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.textMid, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:8, paddingLeft:4 }}>Revenue</div>
+                {(plData.revenue||[]).length===0
+                  ? <div style={{ padding:"8px 12px", color:C.textDim, fontSize:13 }}>No revenue yet</div>
+                  : (plData.revenue||[]).map((item,j)=>(
+                    <div key={j} style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px", borderRadius:8 }}
+                      onMouseEnter={e=>e.currentTarget.style.background=C.raised}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <span style={{ fontSize:13, color:C.text }}>{item.name}</span>
+                      <span style={{ fontFamily:font, fontSize:13, color:C.emerald }}>{fmtAED(item.amount)}</span>
+                    </div>
+                  ))
+                }
+                <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px", borderTop:`1px solid ${C.border}`, marginTop:4 }}>
+                  <span style={{ fontWeight:700, color:C.text }}>Total Revenue</span>
+                  <span style={{ fontFamily:font, fontWeight:700, color:C.emerald }}>{fmtAED(plData.totalRevenue)}</span>
+                </div>
+              </div>
+              {/* Expenses */}
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:C.textMid, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:8, paddingLeft:4 }}>Expenses</div>
+                {(plData.expenses||[]).length===0
+                  ? <div style={{ padding:"8px 12px", color:C.textDim, fontSize:13 }}>No expenses yet</div>
+                  : (plData.expenses||[]).map((item,j)=>(
+                    <div key={j} style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px", borderRadius:8 }}
+                      onMouseEnter={e=>e.currentTarget.style.background=C.raised}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <span style={{ fontSize:13, color:C.text }}>{item.name}</span>
+                      <span style={{ fontFamily:font, fontSize:13, color:C.rose }}>{fmtAED(item.amount)}</span>
+                    </div>
+                  ))
+                }
+                <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 12px", borderTop:`1px solid ${C.border}`, marginTop:4 }}>
+                  <span style={{ fontWeight:700, color:C.text }}>Total Expenses</span>
+                  <span style={{ fontFamily:font, fontWeight:700, color:C.rose }}>{fmtAED(plData.totalExpenses)}</span>
+                </div>
+              </div>
+              {/* Net */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                padding:"12px 16px", borderRadius:10,
+                background:(parseFloat(plData.netProfit||0)>=0)?`${C.teal}12`:`${C.rose}12`,
+                border:`1px solid ${(parseFloat(plData.netProfit||0)>=0)?C.teal:C.rose}30` }}>
+                <span style={{ fontWeight:800, color:C.text, fontSize:14 }}>Net Profit / (Loss)</span>
+                <span style={{ fontFamily:font, fontWeight:900, fontSize:18,
+                  color:(parseFloat(plData.netProfit||0)>=0)?C.teal:C.rose }}>
+                  {fmtAED(plData.netProfit)}
+                </span>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
       {active==="bs" && (
         <Card>
-          <SHead>Balance Sheet — As at Dec 31, 2024</SHead>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
-            <div>
-              <div style={{ fontSize:11, color:C.teal, fontWeight:700, letterSpacing:"0.08em",
-                textTransform:"uppercase", marginBottom:12 }}>ASSETS</div>
-              {coaData.filter(a=>a.type==="Asset"&&!a.parent).map((a,i)=>(
-                <div key={i} style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8 }}>{a.name}</div>
-                  {coaData.filter(c=>c.parent===a.code).map((c,j)=>(
-                    <div key={j} style={{ display:"flex", justifyContent:"space-between",
-                      padding:"6px 12px", borderRadius:6 }}
-                      onMouseEnter={e=>e.currentTarget.style.background=C.raised}
-                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      <span style={{ fontSize:12, color:C.text, paddingLeft:12 }}>└ {c.name}</span>
-                      <span style={{ fontFamily:font, fontSize:12 }}>AED {c.balance.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-              <div style={{ borderTop:`2px solid ${C.teal}`, paddingTop:10,
-                display:"flex", justifyContent:"space-between" }}>
-                <strong style={{ color:C.text }}>Total Assets</strong>
-                <strong style={{ fontFamily:font, color:C.teal }}>AED {coaData.filter(a=>a.type==="Asset").reduce((s,a)=>s+a.balance,0).toLocaleString()}</strong>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize:11, color:C.rose, fontWeight:700, letterSpacing:"0.08em",
-                textTransform:"uppercase", marginBottom:12 }}>LIABILITIES & EQUITY</div>
-              {coaData.filter(a=>["Liability","Equity"].includes(a.type)&&!a.parent).map((a,i)=>(
-                <div key={i} style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:C.textMid, marginBottom:8 }}>{a.name}</div>
-                  {coaData.filter(c=>c.parent===a.code).map((c,j)=>(
-                    <div key={j} style={{ display:"flex", justifyContent:"space-between",
-                      padding:"6px 12px", borderRadius:6 }}
-                      onMouseEnter={e=>e.currentTarget.style.background=C.raised}
-                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      <span style={{ fontSize:12, color:C.text, paddingLeft:12 }}>└ {c.name}</span>
-                      <span style={{ fontFamily:font, fontSize:12 }}>AED {c.balance.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-              <div style={{ borderTop:`2px solid ${C.rose}`, paddingTop:10,
-                display:"flex", justifyContent:"space-between" }}>
-                <strong style={{ color:C.text }}>Total L & E</strong>
-                <strong style={{ fontFamily:font, color:C.rose }}>
-                  AED {coaData.filter(a=>["Liability","Equity"].includes(a.type)).reduce((s,a)=>s+a.balance,0).toLocaleString()}
-                </strong>
-              </div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+            <SHead>Balance Sheet</SHead>
+            <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+              <span style={{ color:C.textMid, fontSize:12 }}>As at</span>
+              <input type="date" value={bsDate} onChange={e=>setBsDate(e.target.value)}
+                style={{ padding:"6px 10px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, color:C.text, fontSize:12 }}/>
+              <Btn onClick={fetchBS}>Run</Btn>
             </div>
           </div>
+          {loading ? <div style={{ color:C.textMid, padding:20 }}>Loading…</div>
+          : !bsData ? <EmptyMsg/>
+          : (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+              <div>
+                <div style={{ fontSize:11, color:C.teal, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>ASSETS</div>
+                {(bsData.assets||[]).length===0
+                  ? <div style={{ color:C.textDim, fontSize:13 }}>No asset accounts</div>
+                  : (bsData.assets||[]).map((a,i)=>(
+                    <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 12px", borderRadius:6 }}
+                      onMouseEnter={e=>e.currentTarget.style.background=C.raised}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <span style={{ fontSize:12, color:C.text }}>{a.name}</span>
+                      <span style={{ fontFamily:font, fontSize:12 }}>{fmtAED(a.balance)}</span>
+                    </div>
+                  ))
+                }
+                <div style={{ borderTop:`2px solid ${C.teal}`, paddingTop:10, display:"flex", justifyContent:"space-between", marginTop:8 }}>
+                  <strong style={{ color:C.text }}>Total Assets</strong>
+                  <strong style={{ fontFamily:font, color:C.teal }}>{fmtAED(bsData.totalAssets)}</strong>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:C.rose, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:12 }}>LIABILITIES & EQUITY</div>
+                {(bsData.liabilities||[]).length===0 && (bsData.equity||[]).length===0
+                  ? <div style={{ color:C.textDim, fontSize:13 }}>No liability/equity accounts</div>
+                  : <>
+                    {(bsData.liabilities||[]).map((a,i)=>(
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 12px", borderRadius:6 }}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.raised}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <span style={{ fontSize:12, color:C.text }}>{a.name}</span>
+                        <span style={{ fontFamily:font, fontSize:12 }}>{fmtAED(a.balance)}</span>
+                      </div>
+                    ))}
+                    {(bsData.equity||[]).map((a,i)=>(
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 12px", borderRadius:6 }}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.raised}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <span style={{ fontSize:12, color:C.text }}>{a.name}</span>
+                        <span style={{ fontFamily:font, fontSize:12 }}>{fmtAED(a.balance)}</span>
+                      </div>
+                    ))}
+                  </>
+                }
+                <div style={{ borderTop:`2px solid ${C.rose}`, paddingTop:10, display:"flex", justifyContent:"space-between", marginTop:8 }}>
+                  <strong style={{ color:C.text }}>Total L & E</strong>
+                  <strong style={{ fontFamily:font, color:C.rose }}>{fmtAED((bsData.totalLiabilities||0)+(bsData.totalEquity||0))}</strong>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
       {active==="aging" && (
         <Card>
           <SHead>Accounts Receivable Aging</SHead>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr>
-              <TH>Customer</TH><TH>Current</TH><TH>1-30 Days</TH><TH>31-60 Days</TH><TH>60+ Days</TH><TH>Total</TH>
-            </tr></thead>
-            <tbody>
-              {[
-                { c:"Accenture MENA",    cur:0,      d30:48500,  d60:0,      d90:0 },
-                { c:"Emirates NBD",      cur:0,      d30:0,      d60:92000,  d90:0 },
-                { c:"ADNOC Distribution",cur:47800,  d30:0,      d60:0,      d90:0 },
-                { c:"Mubadala Investment",cur:115000, d30:0,      d60:0,      d90:0 },
-                { c:"Majid Al Futtaim",  cur:28900,  d30:0,      d60:0,      d90:0 },
-              ].map((row,i)=>{
-                const total=row.cur+row.d30+row.d60+row.d90;
-                return (
+          {loading ? <div style={{ color:C.textMid, padding:20 }}>Loading…</div>
+          : agingData.length===0 ? <EmptyMsg/>
+          : (
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead><tr>
+                <TH>Customer</TH><TH>Current</TH><TH>1-30 Days</TH><TH>31-60 Days</TH><TH>60+ Days</TH><TH>Total</TH>
+              </tr></thead>
+              <tbody>
+                {agingData.map((row,i)=>(
                   <tr key={i}
                     onMouseEnter={e=>e.currentTarget.style.background=C.raised}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <TD style={{ fontWeight:600 }}>{row.c}</TD>
-                    <TD><span style={{ fontFamily:font, color:C.text }}>{row.cur?`AED ${row.cur.toLocaleString()}`:"—"}</span></TD>
-                    <TD><span style={{ fontFamily:font, color:C.amber }}>{row.d30?`AED ${row.d30.toLocaleString()}`:"—"}</span></TD>
-                    <TD><span style={{ fontFamily:font, color:C.rose }}>{row.d60?`AED ${row.d60.toLocaleString()}`:"—"}</span></TD>
-                    <TD><span style={{ fontFamily:font, color:C.rose }}>{row.d90?`AED ${row.d90.toLocaleString()}`:"—"}</span></TD>
-                    <TD><span style={{ fontFamily:font, fontWeight:700 }}>AED {total.toLocaleString()}</span></TD>
+                    <TD style={{ fontWeight:600 }}>{row.customer}</TD>
+                    <TD><span style={{ fontFamily:font, color:C.text }}>{parseFloat(row.current||0)>0?fmtAED(row.current):"—"}</span></TD>
+                    <TD><span style={{ fontFamily:font, color:C.amber }}>{parseFloat(row.days_1_30||0)>0?fmtAED(row.days_1_30):"—"}</span></TD>
+                    <TD><span style={{ fontFamily:font, color:C.rose }}>{parseFloat(row.days_31_60||0)>0?fmtAED(row.days_31_60):"—"}</span></TD>
+                    <TD><span style={{ fontFamily:font, color:C.rose }}>{parseFloat(row.days_60_plus||0)>0?fmtAED(row.days_60_plus):"—"}</span></TD>
+                    <TD><span style={{ fontFamily:font, fontWeight:700 }}>{fmtAED(row.total)}</span></TD>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </Card>
       )}
     </div>
@@ -3250,10 +3507,10 @@ export default function App() {
       case "purchase-orders":   return <PurchaseOrders  token={token}/>;
       case "payment-made":      return <PaymentMade     token={token}/>;
       case "vendor-credit":     return <VendorCredit    token={token}/>;
-      case "banking":           return <Banking/>;
-      case "inventory":         return <Inventory/>;
-      case "vat":               return <VAT/>;
-      case "reports":           return <Reports/>;
+      case "banking":           return <Banking   token={token}/>;
+      case "inventory":         return <Inventory token={token}/>;
+      case "vat":               return <VAT       token={token}/>;
+      case "reports":           return <Reports   token={token}/>;
       default: {
         const item = ALL_NAV.find(n=>n.id===page);
         return (

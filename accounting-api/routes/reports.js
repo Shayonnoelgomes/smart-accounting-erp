@@ -102,12 +102,18 @@ router.get('/trial-balance', async (req, res, next) => {
 router.get('/ar-aging', async (req, res, next) => {
   try {
     const result = await db.query(
-      `SELECT i.number, c.name as customer_name, i.due_date, i.total, i.paid_amount,
-         i.total - i.paid_amount as balance,
-         CURRENT_DATE - i.due_date as days_overdue
+      `SELECT c.name as customer,
+         COALESCE(SUM(CASE WHEN CURRENT_DATE <= i.due_date THEN i.total - i.paid_amount ELSE 0 END), 0) as current,
+         COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 1 AND 30 THEN i.total - i.paid_amount ELSE 0 END), 0) as days_1_30,
+         COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date BETWEEN 31 AND 60 THEN i.total - i.paid_amount ELSE 0 END), 0) as days_31_60,
+         COALESCE(SUM(CASE WHEN CURRENT_DATE - i.due_date > 60 THEN i.total - i.paid_amount ELSE 0 END), 0) as days_60_plus,
+         COALESCE(SUM(i.total - i.paid_amount), 0) as total
        FROM invoices i JOIN customers c ON c.id = i.customer_id
        WHERE i.company_id = $1 AND i.status IN ('sent','partial','overdue')
-       ORDER BY days_overdue DESC`,
+         AND i.total > i.paid_amount
+       GROUP BY c.id, c.name
+       HAVING SUM(i.total - i.paid_amount) > 0
+       ORDER BY total DESC`,
       [req.companyId]
     );
     res.json(result.rows);
