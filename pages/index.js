@@ -1523,20 +1523,45 @@ function Reports() {
 /* ═══════════════════════════════════════════════════════════════
    SIDEBAR NAV CONFIG
 ═══════════════════════════════════════════════════════════════ */
-const NAV = [
-  { id:"dashboard", label:"Dashboard",       icon:"◈" },
-  { id:"gl",        label:"General Ledger",  icon:"⊞" },
-  { id:"invoices",  label:"Invoices",        icon:"↗", badge:2 },
-  { id:"bills",     label:"Bills",           icon:"↙", badge:3 },
-  { id:"banking",   label:"Banking",         icon:"⊟" },
-  { id:"inventory", label:"Inventory",       icon:"⊠", badge:2 },
-  { id:"coa",       label:"Chart of Accounts",icon:"⊕" },
-  { id:"vat",       label:"VAT / Tax",       icon:"⊛" },
-  { id:"reports",   label:"Reports",         icon:"◧" },
-  { id:"expenses",  label:"Expenses",        icon:"◉" },
-  { id:"payroll",   label:"Payroll",         icon:"⊗" },
-  { id:"settings",  label:"Settings",        icon:"⊙" },
+const NAV_TOP = [
+  { id:"dashboard", label:"Dashboard",      icon:"◈" },
+  { id:"gl",        label:"General Ledger", icon:"⊞" },
 ];
+
+const NAV_SALES = [
+  { id:"customers",          label:"Customers",         icon:"◉" },
+  { id:"quotes",             label:"Quotes",            icon:"◎" },
+  { id:"retainer-invoice",   label:"Retainer Invoice",  icon:"◑" },
+  { id:"sales-orders",       label:"Sales Orders",      icon:"◐" },
+  { id:"recurring-invoice",  label:"Recurring Invoice", icon:"↻" },
+  { id:"delivery-note",      label:"Delivery Note",     icon:"◷" },
+  { id:"invoices",           label:"Invoices",          icon:"↗", badge:2 },
+  { id:"payment-received",   label:"Payment Received",  icon:"⊕" },
+  { id:"credit-note",        label:"Credit Note",       icon:"⊖" },
+];
+
+const NAV_PURCHASES = [
+  { id:"suppliers",          label:"Suppliers",          icon:"◈" },
+  { id:"expenses",           label:"Expenses",           icon:"◉" },
+  { id:"recurring-expenses", label:"Recurring Expenses", icon:"↻" },
+  { id:"purchase-orders",    label:"Purchase Orders",    icon:"◐" },
+  { id:"bills",              label:"Bills",              icon:"↙", badge:3 },
+  { id:"recurring-bills",    label:"Recurring Bills",    icon:"↙" },
+  { id:"payment-made",       label:"Payment Made",       icon:"⊟" },
+  { id:"vendor-credit",      label:"Vendor Credit",      icon:"⊖" },
+];
+
+const NAV_BOTTOM = [
+  { id:"banking",   label:"Banking",            icon:"⊟" },
+  { id:"inventory", label:"Inventory",          icon:"⊠", badge:2 },
+  { id:"coa",       label:"Chart of Accounts",  icon:"⊕" },
+  { id:"vat",       label:"VAT / Tax",          icon:"⊛" },
+  { id:"reports",   label:"Reports",            icon:"◧" },
+  { id:"payroll",   label:"Payroll",            icon:"⊗" },
+  { id:"settings",  label:"Settings",           icon:"⊙" },
+];
+
+const ALL_NAV = [...NAV_TOP, ...NAV_SALES, ...NAV_PURCHASES, ...NAV_BOTTOM];
 
 const COMPANIES = ["Horizon Tech FZE", "Nexus Holdings LLC", "Alpha Ventures DMCC"];
 
@@ -1568,12 +1593,14 @@ export default function App() {
     router.push("/login");
   };
 
-  const [page, setPage]           = useState("dashboard");
-  const [coIdx, setCoIdx]         = useState(0);
-  const [showCo, setShowCo]       = useState(false);
-  const [showNotif, setShowNotif] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [search, setSearch]       = useState("");
+  const [page, setPage]                 = useState("dashboard");
+  const [coIdx, setCoIdx]               = useState(0);
+  const [showCo, setShowCo]             = useState(false);
+  const [showNotif, setShowNotif]       = useState(false);
+  const [collapsed, setCollapsed]       = useState(false);
+  const [search, setSearch]             = useState("");
+  const [expandSales, setExpandSales]   = useState(true);
+  const [expandPurchases, setExpandPurchases] = useState(true);
 
   if (!ready) return (
     <div style={{ height:"100vh", background:"#F8FAFC", display:"flex", alignItems:"center",
@@ -1586,32 +1613,35 @@ export default function App() {
   const companyName = company?.name || "SmartAccounting";
   const userInitials = user?.name ? user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() : "??";
 
-  const pageLabels = Object.fromEntries(NAV.map(n=>[n.id,n.label]));
+  const pageLabels = Object.fromEntries(ALL_NAV.map(n=>[n.id,n.label]));
 
   const renderPage = () => {
     switch(page) {
-      case "dashboard": return <Dashboard token={token}/>;
-      case "invoices":  return <Invoices  token={token}/>;
-      case "coa":       return <ChartOfAccounts/>;
-      case "gl":        return <GeneralLedger/>;
-      case "banking":   return <Banking/>;
-      case "inventory": return <Inventory/>;
-      case "vat":       return <VAT/>;
-      case "reports":   return <Reports/>;
-      default: return (
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-          height:380, gap:14 }}>
-          <div style={{ width:64, height:64, borderRadius:18, background:`${C.teal}18`,
-            border:`1px solid ${C.teal}30`, display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:26, color:C.teal }}>
-            {NAV.find(n=>n.id===page)?.icon || "⊙"}
+      case "dashboard":         return <Dashboard token={token}/>;
+      case "invoices":          return <Invoices  token={token}/>;
+      case "coa":               return <ChartOfAccounts/>;
+      case "gl":                return <GeneralLedger/>;
+      case "banking":           return <Banking/>;
+      case "inventory":         return <Inventory/>;
+      case "vat":               return <VAT/>;
+      case "reports":           return <Reports/>;
+      default: {
+        const item = ALL_NAV.find(n=>n.id===page);
+        return (
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            height:380, gap:14 }}>
+            <div style={{ width:64, height:64, borderRadius:18, background:`${C.teal}18`,
+              border:`1px solid ${C.teal}30`, display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:26, color:C.teal }}>
+              {item?.icon || "⊙"}
+            </div>
+            <div style={{ fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>{pageLabels[page]}</div>
+            <div style={{ fontSize:12, color:C.textMid, textAlign:"center" }}>
+              Module in development — coming in Phase 2
+            </div>
           </div>
-          <div style={{ fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>{pageLabels[page]}</div>
-          <div style={{ fontSize:12, color:C.textMid, textAlign:"center" }}>
-            Module in development — coming in Phase 2
-          </div>
-        </div>
-      );
+        );
+      }
     }
   };
 
@@ -1664,7 +1694,123 @@ export default function App() {
 
         {/* Nav links */}
         <nav style={{ flex:1, overflowY:"auto", padding:"10px 8px" }}>
-          {NAV.map(item=>{
+
+          {/* Top items */}
+          {NAV_TOP.map(item=>{
+            const active = page===item.id;
+            return (
+              <button key={item.id} onClick={()=>setPage(item.id)} style={{
+                width:"100%", display:"flex", alignItems:"center",
+                gap:collapsed?0:9, justifyContent:collapsed?"center":"flex-start",
+                padding:collapsed?"10px 0":"9px 10px",
+                borderRadius:9, border:"none", cursor:"pointer", marginBottom:2,
+                background:active?"#2563EB":"none",
+                color:active?"#fff":"rgba(255,255,255,0.65)", position:"relative",
+                transition:"background 0.15s" }}
+                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.08)")}
+                onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
+                {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
+                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
+                <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
+                {!collapsed && (
+                  <span style={{ fontSize:12, fontWeight:active?700:400, flex:1, textAlign:"left" }}>{item.label}</span>
+                )}
+              </button>
+            );
+          })}
+
+          {/* SALES section */}
+          {!collapsed && (
+            <button onClick={()=>setExpandSales(!expandSales)} style={{
+              width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+              padding:"10px 10px 6px", background:"none", border:"none", cursor:"pointer",
+              marginTop:8 }}>
+              <span style={{ fontSize:9, fontWeight:700, color:"#93C5FD",
+                letterSpacing:"0.1em", textTransform:"uppercase" }}>Sales</span>
+              <span style={{ fontSize:9, color:"#93C5FD" }}>{expandSales?"▼":"▶"}</span>
+            </button>
+          )}
+          {collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"8px 4px" }}/>}
+          {(collapsed || expandSales) && NAV_SALES.map(item=>{
+            const active = page===item.id;
+            return (
+              <button key={item.id} onClick={()=>setPage(item.id)} style={{
+                width:"100%", display:"flex", alignItems:"center",
+                gap:collapsed?0:8, justifyContent:collapsed?"center":"flex-start",
+                padding:collapsed?"9px 0":"7px 10px 7px"+(collapsed?"":" 18px"),
+                paddingLeft:collapsed?0:18,
+                borderRadius:8, border:"none", cursor:"pointer", marginBottom:1,
+                background:active?"#2563EB":"none",
+                color:active?"#fff":"rgba(255,255,255,0.6)", position:"relative",
+                transition:"background 0.15s" }}
+                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.07)")}
+                onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
+                {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
+                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
+                <span style={{ fontSize:11, flexShrink:0 }}>{item.icon}</span>
+                {!collapsed && <>
+                  <span style={{ fontSize:11, fontWeight:active?600:400, flex:1, textAlign:"left",
+                    color:active?"#fff":"#CBD5E1" }}>{item.label}</span>
+                  {item.badge && (
+                    <span style={{ fontSize:9, fontWeight:700, minWidth:16, height:16,
+                      background:"rgba(239,68,68,0.9)", color:"#fff", borderRadius:8,
+                      display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>
+                      {item.badge}
+                    </span>
+                  )}
+                </>}
+              </button>
+            );
+          })}
+
+          {/* PURCHASES section */}
+          {!collapsed && (
+            <button onClick={()=>setExpandPurchases(!expandPurchases)} style={{
+              width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+              padding:"10px 10px 6px", background:"none", border:"none", cursor:"pointer",
+              marginTop:8 }}>
+              <span style={{ fontSize:9, fontWeight:700, color:"#93C5FD",
+                letterSpacing:"0.1em", textTransform:"uppercase" }}>Purchases</span>
+              <span style={{ fontSize:9, color:"#93C5FD" }}>{expandPurchases?"▼":"▶"}</span>
+            </button>
+          )}
+          {collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"4px 4px 8px" }}/>}
+          {(collapsed || expandPurchases) && NAV_PURCHASES.map(item=>{
+            const active = page===item.id;
+            return (
+              <button key={item.id} onClick={()=>setPage(item.id)} style={{
+                width:"100%", display:"flex", alignItems:"center",
+                gap:collapsed?0:8, justifyContent:collapsed?"center":"flex-start",
+                paddingLeft:collapsed?0:18,
+                padding:collapsed?"9px 0":"7px 10px 7px 18px",
+                borderRadius:8, border:"none", cursor:"pointer", marginBottom:1,
+                background:active?"#2563EB":"none",
+                color:active?"#fff":"rgba(255,255,255,0.6)", position:"relative",
+                transition:"background 0.15s" }}
+                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.07)")}
+                onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
+                {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
+                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
+                <span style={{ fontSize:11, flexShrink:0 }}>{item.icon}</span>
+                {!collapsed && <>
+                  <span style={{ fontSize:11, fontWeight:active?600:400, flex:1, textAlign:"left",
+                    color:active?"#fff":"#CBD5E1" }}>{item.label}</span>
+                  {item.badge && (
+                    <span style={{ fontSize:9, fontWeight:700, minWidth:16, height:16,
+                      background:"rgba(239,68,68,0.9)", color:"#fff", borderRadius:8,
+                      display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>
+                      {item.badge}
+                    </span>
+                  )}
+                </>}
+              </button>
+            );
+          })}
+
+          {/* Bottom items */}
+          {!collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"10px 4px 8px" }}/>}
+          {collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"8px 4px" }}/>}
+          {NAV_BOTTOM.map(item=>{
             const active = page===item.id;
             return (
               <button key={item.id} onClick={()=>setPage(item.id)} style={{
