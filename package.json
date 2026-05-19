@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "start:all": "concurrently --names \"frontend,backend\" --prefix-colors \"cyan,yellow\" \"npm run dev\" \"cd accounting-api && npm run dev\""
   },
   "dependencies": {
     "next": "16.2.6",
@@ -19,6 +20,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
