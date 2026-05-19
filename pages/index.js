@@ -12,23 +12,23 @@ import {
    DESIGN SYSTEM
 ═══════════════════════════════════════════════════════════════ */
 const C = {
-  bg:       "#07111F",
-  surface:  "#0C1A2E",
-  surfaceB: "#101F35",
-  raised:   "#152234",
-  border:   "rgba(255,255,255,0.065)",
-  borderHi: "rgba(0,210,180,0.35)",
+  bg:       "#F8FAFC",
+  surface:  "#FFFFFF",
+  surfaceB: "#F8FAFC",
+  raised:   "#F1F5F9",
+  border:   "#E2E8F0",
+  borderHi: "#93C5FD",
   teal:     "#00D2B4",
   tealDim:  "#007A6A",
-  tealGlow: "rgba(0,210,180,0.12)",
+  tealGlow: "rgba(0,210,180,0.08)",
   sky:      "#38BDF8",
   violet:   "#A78BFA",
-  amber:    "#FBBF24",
-  rose:     "#F43F5E",
+  amber:    "#F59E0B",
+  rose:     "#EF4444",
   emerald:  "#10B981",
-  text:     "#D9E8F5",
-  textMid:  "#7A96B4",
-  textDim:  "#3D5570",
+  text:     "#1E293B",
+  textMid:  "#64748B",
+  textDim:  "#94A3B8",
   white:    "#FFFFFF",
 };
 
@@ -200,7 +200,8 @@ const Pill = ({ status }) => {
 };
 
 const Card = ({ children, style={} }) => (
-  <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:20, ...style }}>
+  <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:20,
+    boxShadow:"0 1px 3px rgba(0,0,0,0.06)", ...style }}>
     {children}
   </div>
 );
@@ -222,17 +223,17 @@ const Btn = ({ children, onClick, variant="primary", style={} }) => {
     fontSize:12, fontWeight:700, fontFamily:sansFont, transition:"opacity 0.15s", ...style
   };
   const variants = {
-    primary: { background:C.teal, color:C.bg },
+    primary: { background:"#2563EB", color:"#FFFFFF", boxShadow:"0 2px 8px rgba(37,99,235,0.25)" },
     ghost:   { background:"none", color:C.textMid, border:`1px solid ${C.border}` },
-    danger:  { background:`${C.rose}20`, color:C.rose, border:`1px solid ${C.rose}40` },
+    danger:  { background:`${C.rose}10`, color:C.rose, border:`1px solid ${C.rose}30` },
   };
   return <button onClick={onClick} style={{ ...base, ...variants[variant] }}>{children}</button>;
 };
 
 const TH = ({ children }) => (
-  <th style={{ fontSize:10, fontWeight:700, color:C.textDim, letterSpacing:"0.1em",
+  <th style={{ fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em",
     textTransform:"uppercase", padding:"10px 14px", textAlign:"left",
-    borderBottom:`1px solid ${C.border}`, fontFamily:font }}>{children}</th>
+    background:C.surfaceB, borderBottom:`1px solid ${C.border}`, fontFamily:font }}>{children}</th>
 );
 const TD = ({ children, style={} }) => (
   <td style={{ padding:"11px 14px", fontSize:12, color:C.text,
@@ -251,8 +252,8 @@ function Modal({ open, onClose, title, children, width=560 }) {
       display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={{ width, maxWidth:"90vw", maxHeight:"85vh", overflowY:"auto",
-        background:C.surfaceB, border:`1px solid ${C.borderHi}`,
-        borderRadius:16, boxShadow:"0 30px 80px rgba(0,0,0,0.6)" }}>
+        background:C.white, border:`1px solid ${C.border}`,
+        borderRadius:16, boxShadow:"0 20px 60px rgba(0,0,0,0.15)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
           padding:"18px 22px", borderBottom:`1px solid ${C.border}` }}>
           <span style={{ fontSize:14, fontWeight:700, color:C.text, fontFamily:font }}>{title}</span>
@@ -333,26 +334,30 @@ function Dashboard({ token }) {
 
   const alertItems = alerts ? [
     alerts.overdueInvoices?.length && {
-      c:C.rose, i:"⚠", t:"Overdue Invoices",
+      c:"#EF4444", bg:"#FEF2F2", bc:"#FECACA",
+      i:"⚠", t:"Overdue Invoices",
       d:`${alerts.overdueInvoices.length} invoice${alerts.overdueInvoices.length>1?"s":""} past due`,
     },
     alerts.pendingBills?.length && {
-      c:C.amber, i:"⏳", t:"Bills Due",
+      c:"#D97706", bg:"#FFFBEB", bc:"#FDE68A",
+      i:"⏳", t:"Bills Due",
       d:`${alerts.pendingBills.length} bill${alerts.pendingBills.length>1?"s":""} awaiting payment`,
     },
     alerts.vatDue?.length && {
-      c:C.violet, i:"⊛", t:"VAT Return Due",
+      c:"#7C3AED", bg:"#F5F3FF", bc:"#DDD6FE",
+      i:"⊛", t:"VAT Return Due",
       d:`${alerts.vatDue.length} draft return${alerts.vatDue.length>1?"s":""}`,
     },
     alerts.lowInventory?.length && {
-      c:C.sky, i:"⊠", t:"Low Stock Alert",
+      c:"#059669", bg:"#F0FDF4", bc:"#A7F3D0",
+      i:"⊠", t:"Low Stock Alert",
       d:`${alerts.lowInventory.length} item${alerts.lowInventory.length>1?"s":""} below reorder level`,
     },
   ].filter(Boolean) : [
-    { c:C.rose,    i:"⚠", t:"Overdue Invoices",    d:"No data yet" },
-    { c:C.amber,   i:"⏳", t:"Pending Bills",        d:"No data yet" },
-    { c:C.sky,     i:"⊟", t:"Bank Reconciliation",  d:"Set up bank accounts" },
-    { c:C.violet,  i:"⊛", t:"VAT Return",           d:"No returns due" },
+    { c:"#EF4444", bg:"#FEF2F2", bc:"#FECACA", i:"⚠", t:"Overdue Invoices",   d:"No overdue invoices" },
+    { c:"#D97706", bg:"#FFFBEB", bc:"#FDE68A", i:"⏳", t:"Pending Bills",       d:"No pending bills" },
+    { c:"#2563EB", bg:"#EFF6FF", bc:"#BFDBFE", i:"⊟", t:"Bank Reconciliation", d:"Set up bank accounts" },
+    { c:"#7C3AED", bg:"#F5F3FF", bc:"#DDD6FE", i:"⊛", t:"VAT Return",          d:"No returns due" },
   ];
 
   return (
@@ -361,8 +366,8 @@ function Dashboard({ token }) {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
         {kpis.map((k,i)=>(
           <Card key={i} style={{ position:"relative", overflow:"hidden", cursor:"default" }}>
-            <div style={{ position:"absolute", top:-20, right:-20, width:80, height:80,
-              borderRadius:"50%", background:k.color, opacity:0.07, filter:"blur(25px)" }}/>
+            <div style={{ position:"absolute", top:-20, right:-20, width:90, height:90,
+              borderRadius:"50%", background:k.color, opacity:0.12, filter:"blur(20px)" }}/>
             <div style={{ fontSize:10, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase",
               fontWeight:700, marginBottom:10, fontFamily:font }}>{k.label}</div>
             <div style={{ fontSize:10, color:C.textDim, marginBottom:2 }}>AED</div>
@@ -457,7 +462,7 @@ function Dashboard({ token }) {
             {alertItems.map((a,i)=>(
               <div key={i} style={{ display:"flex", alignItems:"center", gap:12,
                 padding:"10px 14px", borderRadius:10,
-                background:`${a.c}0C`, border:`1px solid ${a.c}25`, cursor:"pointer" }}>
+                background:a.bg, border:`1px solid ${a.bc}`, cursor:"pointer" }}>
                 <span style={{ fontSize:15, color:a.c }}>{a.i}</span>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{a.t}</div>
@@ -1612,11 +1617,11 @@ export default function App() {
 
   return (
     <div style={{ display:"flex", height:"100vh", width:"100%",
-      background:C.bg, fontFamily:sansFont, color:C.text, overflow:"hidden" }}>
+      background:"#F1F5F9", fontFamily:sansFont, color:C.text, overflow:"hidden" }}>
 
       {/* ─── SIDEBAR ─── */}
       <div style={{ width:SW, flexShrink:0, height:"100%",
-        background:"#1E40AF",
+        background:"#1E3A8A",
         borderRight:"none", display:"flex", flexDirection:"column",
         transition:"width 0.2s", overflow:"hidden" }}>
 
@@ -1667,13 +1672,13 @@ export default function App() {
                 gap:collapsed?0:9, justifyContent:collapsed?"center":"flex-start",
                 padding:collapsed?"10px 0":"9px 10px",
                 borderRadius:9, border:"none", cursor:"pointer", marginBottom:2,
-                background:active?"rgba(255,255,255,0.15)":"none",
-                color:active?"#fff":"rgba(255,255,255,0.6)", position:"relative",
+                background:active?"#2563EB":"none",
+                color:active?"#fff":"rgba(255,255,255,0.65)", position:"relative",
                 transition:"background 0.15s" }}
                 onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.08)")}
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
-                  width:3, borderRadius:"0 2px 2px 0", background:"#fff" }}/>}
+                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
                 <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
                   <span style={{ fontSize:12, fontWeight:active?700:400, flex:1, textAlign:"left" }}>{item.label}</span>
@@ -1788,16 +1793,25 @@ export default function App() {
               boxShadow:"0 2px 8px rgba(37,99,235,0.3)" }}>
               {userInitials}
             </div>
-            <button onClick={logout} title="Sign out" style={{
-              width:34, height:34, borderRadius:9, border:"1px solid #E2E8F0",
-              background:"#F8FAFC", cursor:"pointer", fontSize:14, color:"#64748B",
-              display:"flex", alignItems:"center", justifyContent:"center",
-            }}>⎋</button>
+            <button
+              onClick={logout}
+              style={{
+                padding:"7px 14px", borderRadius:8, border:"1px solid #FECACA",
+                background:"#FEF2F2", cursor:"pointer", fontSize:12, fontWeight:600,
+                color:"#DC2626", display:"flex", alignItems:"center", gap:6,
+                fontFamily:"'DM Sans','Segoe UI',system-ui,sans-serif",
+                transition:"all 0.15s",
+              }}
+              onMouseEnter={e=>{ e.currentTarget.style.background="#FEE2E2"; e.currentTarget.style.borderColor="#FCA5A5"; }}
+              onMouseLeave={e=>{ e.currentTarget.style.background="#FEF2F2"; e.currentTarget.style.borderColor="#FECACA"; }}
+            >
+              <span style={{ fontSize:14 }}>⏻</span> Logout
+            </button>
           </div>
         </div>
 
         {/* Page Content */}
-        <div style={{ flex:1, overflowY:"auto", padding:22 }}>
+        <div style={{ flex:1, overflowY:"auto", padding:22, background:"#F1F5F9" }}>
           {renderPage()}
         </div>
       </div>
