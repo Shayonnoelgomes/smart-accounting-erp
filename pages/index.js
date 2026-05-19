@@ -482,78 +482,80 @@ function Dashboard({ token }) {
    PAGE: INVOICES
 ═══════════════════════════════════════════════════════════════ */
 function Invoices({ token }) {
+  const h = { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
+  const today = new Date().toISOString().slice(0,10);
+  const emptyLine = { description:"", quantity:1, unit_price:0, tax_rate:5 };
+  const emptyForm = { customer_id:"", number:"", date:today, due_date:"", currency:"AED", notes:"", items:[{...emptyLine}] };
+  const emptyPay  = { amount:"", date:today, method:"bank_transfer", reference:"", notes:"" };
+
   const [invoices,   setInvoices]   = useState([]);
+  const [customers,  setCustomers]  = useState([]);
   const [loading,    setLoading]    = useState(true);
+  const [filter,     setFilter]     = useState("All");
   const [showNew,    setShowNew]    = useState(false);
   const [showDetail, setShowDetail] = useState(null);
-  const [filter,     setFilter]     = useState("All");
-  const [saving,     setSaving]     = useState(false);
-  const [apiError,   setApiError]   = useState("");
-  const [form, setForm] = useState({
-    customer_id:"", number:"", date:"", due_date:"", currency:"AED",
-    notes:"", items:[{ description:"", quantity:1, unit_price:0, tax_rate:5 }],
-  });
-  const fv = v => n => setForm(p=>({...p,[v]:n}));
-  const statuses = ["All","draft","sent","paid","partial","overdue","void"];
+  const [showPay,    setShowPay]    = useState(false);
+  const [form, setForm]             = useState(emptyForm);
+  const [payForm, setPayForm]       = useState(emptyPay);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
+  const [toast, setToast]           = useState("");
+
+  const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""),3000); };
 
   const fetchInvoices = () => {
-    if (!token) return;
     setLoading(true);
-    fetch(`${API_URL}/api/invoices`, { headers:{ Authorization:`Bearer ${token}` } })
-      .then(r=>r.json())
-      .then(d=>{ setInvoices(Array.isArray(d.data)?d.data:[]); setLoading(false); })
-      .catch(()=>setLoading(false));
+    fetch(`${API_URL}/api/invoices`,{headers:h}).then(r=>r.json())
+      .then(d=>{ setInvoices(Array.isArray(d.data)?d.data:[]); setLoading(false); }).catch(()=>setLoading(false));
   };
-
-  useEffect(()=>{ fetchInvoices(); }, [token]);
+  useEffect(()=>{
+    fetchInvoices();
+    fetch(`${API_URL}/api/customers`,{headers:h}).then(r=>r.json()).then(d=>setCustomers(Array.isArray(d.data)?d.data:[])).catch(()=>{});
+  },[token]);
 
   const filtered = filter==="All" ? invoices : invoices.filter(i=>i.status===filter);
-
-  const addLine = () => setForm(p=>({...p,items:[...p.items,{description:"",quantity:1,unit_price:0,tax_rate:5}]}));
-  const totalAmt = form.items.reduce((a,it)=>a+(it.quantity*it.unit_price),0);
-  const vatAmt   = form.items.reduce((a,it)=>a+(it.quantity*it.unit_price*(it.tax_rate/100)),0);
+  const nextNum  = () => { const n=invoices.map(i=>parseInt((i.number||"").replace(/\D/g,""))||0); return `INV-${String(Math.max(0,...n)+1).padStart(4,"0")}`; };
+  const openNew  = () => { setForm({...emptyForm,number:nextNum(),date:today}); setError(""); setShowNew(true); };
+  const addLine    = () => setForm(p=>({...p,items:[...p.items,{...emptyLine}]}));
+  const removeLine = i  => setForm(p=>({...p,items:p.items.filter((_,idx)=>idx!==i)}));
+  const updateLine = (i,k,v) => setForm(p=>{ const items=[...p.items]; items[i]={...items[i],[k]:v}; return {...p,items}; });
+  const fv = k => v => setForm(p=>({...p,[k]:v}));
+  const subtotal = form.items.reduce((a,it)=>a+(parseFloat(it.quantity||0)*parseFloat(it.unit_price||0)),0);
+  const vatAmt   = form.items.reduce((a,it)=>a+(parseFloat(it.quantity||0)*parseFloat(it.unit_price||0)*(parseFloat(it.tax_rate||0)/100)),0);
 
   const createInvoice = async () => {
-    if (!form.customer_id||!form.number||!form.date||!form.due_date) {
-      setApiError("Customer ID, number, date and due date are required."); return;
-    }
-    setSaving(true); setApiError("");
+    if (!form.customer_id||!form.number||!form.date||!form.due_date) { setError("Customer, number, date and due date are required."); return; }
+    setSaving(true); setError("");
     try {
-      const res  = await fetch(`${API_URL}/api/invoices`, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
-        body: JSON.stringify({
-          customer_id: form.customer_id,
-          number:      form.number,
-          date:        form.date,
-          due_date:    form.due_date,
-          currency:    form.currency,
-          notes:       form.notes,
-          lines:       form.items,
-        }),
-      });
+      const res = await fetch(`${API_URL}/api/invoices`,{ method:"POST", headers:h, body:JSON.stringify({ customer_id:form.customer_id, number:form.number, date:form.date, due_date:form.due_date, currency:form.currency, notes:form.notes||null, lines:form.items }) });
       const data = await res.json();
-      if (!res.ok) { setApiError(data.error||"Failed to create invoice."); setSaving(false); return; }
-      setShowNew(false);
-      setForm({ customer_id:"",number:"",date:"",due_date:"",currency:"AED",notes:"",
-        items:[{description:"",quantity:1,unit_price:0,tax_rate:5}] });
-      fetchInvoices();
-    } catch { setApiError("Network error."); }
+      if (!res.ok) { setError(data.error||"Failed to create invoice."); setSaving(false); return; }
+      setShowNew(false); fetchInvoices(); showToast("Invoice created!");
+    } catch { setError("Network error."); }
     setSaving(false);
   };
 
-  const recordPayment = async (invId, amount) => {
-    await fetch(`${API_URL}/api/invoices/${invId}/payment`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
-      body: JSON.stringify({ amount, date: new Date().toISOString().slice(0,10), method:"bank_transfer" }),
-    });
-    fetchInvoices();
-    setShowDetail(null);
+  const openPay = () => {
+    const bal = parseFloat(showDetail.total||0)-parseFloat(showDetail.paid_amount||0);
+    setPayForm({...emptyPay,amount:bal.toFixed(2)}); setError(""); setShowPay(true);
+  };
+
+  const recordPayment = async () => {
+    if (!payForm.amount||parseFloat(payForm.amount)<=0) { setError("Enter a valid amount."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/invoices/${showDetail.id}/payment`,{ method:"POST", headers:h, body:JSON.stringify({ amount:parseFloat(payForm.amount), date:payForm.date, method:payForm.method, reference:payForm.reference||null }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed."); setSaving(false); return; }
+      setShowPay(false); setShowDetail(null); fetchInvoices(); showToast("Payment recorded!");
+    } catch { setError("Network error."); }
+    setSaving(false);
   };
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:2000, background:C.emerald, color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13, fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.15)" }}>✓ {toast}</div>}
+
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
@@ -563,8 +565,7 @@ function Invoices({ token }) {
           </p>
         </div>
         <div style={{ display:"flex", gap:10 }}>
-          <Btn variant="ghost">↓ Export</Btn>
-          <Btn onClick={()=>setShowNew(true)}>+ New Invoice</Btn>
+          <Btn onClick={openNew}>+ New Invoice</Btn>
         </div>
       </div>
 
@@ -587,30 +588,20 @@ function Invoices({ token }) {
 
       {/* Filter Tabs */}
       <div style={{ display:"flex", gap:6 }}>
-        {statuses.map(s=>(
-          <button key={s} onClick={()=>setFilter(s)} style={{
-            padding:"6px 14px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
-            background:filter===s?C.teal:C.surface, color:filter===s?C.bg:C.textMid,
-          }}>{s}</button>
+        {["All","draft","sent","paid","partial","overdue"].map(s=>(
+          <button key={s} onClick={()=>setFilter(s)} style={{ padding:"6px 14px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:filter===s?C.teal:C.surface, color:filter===s?C.bg:C.textMid }}>{s}</button>
         ))}
       </div>
 
       {/* Table */}
       <Card style={{ padding:0, overflow:"hidden" }}>
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
-          <thead><tr>
-            <TH>Invoice #</TH><TH>Customer</TH><TH>Date</TH><TH>Due Date</TH>
-            <TH>Amount</TH><TH>Paid</TH><TH>Status</TH><TH>Actions</TH>
-          </tr></thead>
+          <thead><tr><TH>Invoice #</TH><TH>Customer</TH><TH>Date</TH><TH>Due Date</TH><TH>Amount</TH><TH>Paid</TH><TH>Status</TH><TH>Actions</TH></tr></thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading invoices…</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No invoices found. Create your first invoice.</td></tr>
-            ) : filtered.map((inv,i)=>(
-              <tr key={inv.id||i} style={{ cursor:"pointer" }}
-                onMouseEnter={e=>e.currentTarget.style.background=C.raised}
-                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            {loading ? <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading invoices…</td></tr>
+            : filtered.length===0 ? <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No invoices found. Create your first invoice.</td></tr>
+            : filtered.map((inv,i)=>(
+              <tr key={inv.id||i} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <TD><span style={{ color:C.teal, fontFamily:font, fontWeight:700 }}>{inv.number}</span></TD>
                 <TD>{inv.customer_name||"—"}</TD>
                 <TD style={{ color:C.textMid }}>{inv.date}</TD>
@@ -618,13 +609,7 @@ function Invoices({ token }) {
                 <TD><span style={{ fontFamily:font, fontWeight:700 }}>AED {parseFloat(inv.total||0).toLocaleString()}</span></TD>
                 <TD><span style={{ fontFamily:font, color:C.emerald }}>AED {parseFloat(inv.paid_amount||0).toLocaleString()}</span></TD>
                 <TD><Pill status={inv.status}/></TD>
-                <TD>
-                  <div style={{ display:"flex", gap:6 }}>
-                    <button onClick={()=>setShowDetail(inv)}
-                      style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`,
-                        borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
-                  </div>
-                </TD>
+                <TD><button onClick={()=>setShowDetail(inv)} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button></TD>
               </tr>
             ))}
           </tbody>
@@ -632,118 +617,96 @@ function Invoices({ token }) {
       </Card>
 
       {/* New Invoice Modal */}
-      <Modal open={showNew} onClose={()=>{ setShowNew(false); setApiError(""); }} title="New Invoice" width={680}>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-          <Input label="Customer ID (UUID)" value={form.customer_id} onChange={fv("customer_id")} placeholder="Customer UUID"/>
-          <Input label="Invoice Number" value={form.number} onChange={fv("number")} placeholder="INV-001"/>
+      <Modal open={showNew} onClose={()=>{setShowNew(false);setError("");}} title="New Invoice" width={720}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:4 }}>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Customer *</label>
+            <select value={form.customer_id} onChange={e=>fv("customer_id")(e.target.value)}
+              style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none" }}>
+              <option value="">Select customer…</option>
+              {customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <Input label="Invoice Number" value={form.number} onChange={fv("number")} placeholder="INV-0001"/>
           <Input label="Invoice Date" value={form.date} onChange={fv("date")} type="date"/>
           <Input label="Due Date" value={form.due_date} onChange={fv("due_date")} type="date"/>
           <Select label="Currency" value={form.currency} onChange={fv("currency")} options={["AED","USD","EUR","GBP"]}/>
           <Input label="Notes" value={form.notes} onChange={fv("notes")} placeholder="Optional notes"/>
         </div>
-        <div style={{ marginTop:4 }}>
-          <div style={{ fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em",
-            textTransform:"uppercase", marginBottom:10 }}>Line Items</div>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead><tr>
-              <TH>Description</TH><TH>Qty</TH><TH>Rate</TH><TH>Amount</TH>
-            </tr></thead>
-            <tbody>
-              {form.items.map((item,i)=>(
-                <tr key={i}>
-                  <TD>
-                    <input value={item.description}
-                      onChange={e=>{const it=[...form.items];it[i].description=e.target.value;setForm(p=>({...p,items:it}));}}
-                      style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
-                        padding:"6px 8px", color:C.text, fontSize:12, width:"95%" }}/>
-                  </TD>
-                  <TD>
-                    <input type="number" value={item.quantity}
-                      onChange={e=>{const it=[...form.items];it[i].quantity=+e.target.value;setForm(p=>({...p,items:it}));}}
-                      style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
-                        padding:"6px 8px", color:C.text, fontSize:12, width:60 }}/>
-                  </TD>
-                  <TD>
-                    <input type="number" value={item.unit_price}
-                      onChange={e=>{const it=[...form.items];it[i].unit_price=+e.target.value;setForm(p=>({...p,items:it}));}}
-                      style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
-                        padding:"6px 8px", color:C.text, fontSize:12, width:90 }}/>
-                  </TD>
-                  <TD style={{ fontFamily:font, color:C.teal }}>AED {(item.quantity*item.unit_price).toLocaleString()}</TD>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button onClick={addLine} style={{ marginTop:10, fontSize:11, color:C.teal, background:"none",
-            border:`1px dashed ${C.teal}40`, borderRadius:8, padding:"7px 14px", cursor:"pointer", width:"100%" }}>
-            + Add Line Item
-          </button>
-          <div style={{ marginTop:16, padding:16, background:C.surface, borderRadius:10, display:"flex", flexDirection:"column", gap:8 }}>
-            {[["Subtotal", totalAmt],["VAT 5%", vatAmt],["Total", totalAmt+vatAmt]].map(([l,v])=>(
-              <div key={l} style={{ display:"flex", justifyContent:"space-between" }}>
-                <span style={{ fontSize:12, color:l==="Total"?C.text:C.textMid, fontWeight:l==="Total"?700:400 }}>{l}</span>
-                <span style={{ fontSize:12, color:l==="Total"?C.teal:C.text, fontWeight:700, fontFamily:font }}>
-                  AED {v.toLocaleString()}
-                </span>
-              </div>
+        <div style={{ fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10 }}>Line Items</div>
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
+          <thead><tr><TH>Description</TH><TH>Qty</TH><TH>Unit Price</TH><TH>VAT %</TH><TH>Amount</TH><TH></TH></tr></thead>
+          <tbody>
+            {form.items.map((item,i)=>(
+              <tr key={i}>
+                <TD><input value={item.description} onChange={e=>updateLine(i,"description",e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:12, width:"95%" }}/></TD>
+                <TD><input type="number" value={item.quantity} onChange={e=>updateLine(i,"quantity",+e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:12, width:55 }}/></TD>
+                <TD><input type="number" value={item.unit_price} onChange={e=>updateLine(i,"unit_price",+e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:12, width:90 }}/></TD>
+                <TD><input type="number" value={item.tax_rate} onChange={e=>updateLine(i,"tax_rate",+e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:12, width:50 }}/></TD>
+                <TD style={{ fontFamily:font, color:C.teal }}>AED {((item.quantity||0)*(item.unit_price||0)).toLocaleString()}</TD>
+                <TD><button onClick={()=>removeLine(i)} style={{ background:"none", border:"none", cursor:"pointer", color:C.rose, fontSize:18 }}>×</button></TD>
+              </tr>
             ))}
-          </div>
+          </tbody>
+        </table>
+        <button onClick={addLine} style={{ marginTop:10, fontSize:11, color:C.teal, background:"none", border:`1px dashed ${C.teal}40`, borderRadius:8, padding:"7px 14px", cursor:"pointer", width:"100%" }}>+ Add Line Item</button>
+        <div style={{ marginTop:14, padding:14, background:C.surface, borderRadius:10, display:"flex", flexDirection:"column", gap:8 }}>
+          {[["Subtotal",subtotal],["VAT",vatAmt],["Total",subtotal+vatAmt]].map(([l,v])=>(
+            <div key={l} style={{ display:"flex", justifyContent:"space-between" }}>
+              <span style={{ fontSize:12, color:l==="Total"?C.text:C.textMid, fontWeight:l==="Total"?700:400 }}>{l}</span>
+              <span style={{ fontSize:12, color:l==="Total"?C.teal:C.text, fontWeight:700, fontFamily:font }}>AED {v.toLocaleString()}</span>
+            </div>
+          ))}
         </div>
-        {apiError && (
-          <div style={{ marginTop:12, padding:"10px 14px", background:`${C.rose}12`,
-            border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>
-            ⚠ {apiError}
-          </div>
-        )}
+        {error && <div style={{ marginTop:12, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
         <div style={{ display:"flex", gap:10, marginTop:18 }}>
-          <Btn variant="ghost" onClick={()=>{ setShowNew(false); setApiError(""); }}>Cancel</Btn>
-          <Btn onClick={createInvoice}>{saving?"Saving…":"Save Invoice"}</Btn>
+          <Btn variant="ghost" onClick={()=>{setShowNew(false);setError("");}}>Cancel</Btn>
+          <Btn onClick={createInvoice}>{saving?"Saving…":"Create Invoice"}</Btn>
         </div>
       </Modal>
 
       {/* Invoice Detail Modal */}
-      <Modal open={!!showDetail} onClose={()=>setShowDetail(null)} title={showDetail?.number} width={600}>
-        {showDetail && (
-          <div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:18 }}>
-              {[
-                ["Customer",     showDetail.customer_name||"—"],
-                ["Invoice Date", showDetail.date],
-                ["Due Date",     showDetail.due_date],
-                ["Status",       ""],
-              ].map(([l,v],i)=>(
-                <div key={i}>
-                  <div style={{ fontSize:10, color:C.textDim, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:4 }}>{l}</div>
-                  <div style={{ fontSize:13, color:C.text, fontWeight:600 }}>
-                    {l==="Status" ? <Pill status={showDetail.status}/> : v}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ padding:16, background:C.surface, borderRadius:10, marginBottom:14 }}>
-              {[
-                ["Invoice Amount", parseFloat(showDetail.total||0)],
-                ["Amount Paid",    parseFloat(showDetail.paid_amount||0)],
-                ["Balance Due",    parseFloat(showDetail.total||0)-parseFloat(showDetail.paid_amount||0)],
-              ].map(([l,v])=>(
-                <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-                  <span style={{ fontSize:12, color:C.textMid }}>{l}</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:l==="Balance Due"?C.amber:C.text, fontFamily:font }}>
-                    AED {v.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display:"flex", gap:10 }}>
-              {parseFloat(showDetail.paid_amount||0) < parseFloat(showDetail.total||0) && (
-                <Btn onClick={()=>recordPayment(showDetail.id, parseFloat(showDetail.total)-parseFloat(showDetail.paid_amount||0))}>
-                  Record Full Payment
-                </Btn>
-              )}
-              <Btn variant="ghost" onClick={()=>setShowDetail(null)}>Close</Btn>
-            </div>
+      <Modal open={!!showDetail} onClose={()=>setShowDetail(null)} title={showDetail?.number||""} width={580}>
+        {showDetail && (<div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:18 }}>
+            {[["Customer",showDetail.customer_name||"—"],["Date",showDetail.date],["Due Date",showDetail.due_date],["Status",""]].map(([l,v],i)=>(
+              <div key={i}><div style={{ fontSize:10, color:C.textDim, textTransform:"uppercase", marginBottom:4, letterSpacing:"0.07em" }}>{l}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{l==="Status"?<Pill status={showDetail.status}/>:v}</div></div>
+            ))}
           </div>
-        )}
+          <div style={{ padding:16, background:C.surface, borderRadius:10, marginBottom:14 }}>
+            {[["Invoice Amount",parseFloat(showDetail.total||0)],["Amount Paid",parseFloat(showDetail.paid_amount||0)],["Balance Due",parseFloat(showDetail.total||0)-parseFloat(showDetail.paid_amount||0)]].map(([l,v])=>(
+              <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                <span style={{ fontSize:12, color:C.textMid }}>{l}</span>
+                <span style={{ fontSize:13, fontWeight:700, color:l==="Balance Due"?C.amber:C.text, fontFamily:font }}>AED {v.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          {error && <div style={{ marginBottom:10, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+          <div style={{ display:"flex", gap:10 }}>
+            {parseFloat(showDetail.paid_amount||0)<parseFloat(showDetail.total||0) && <Btn onClick={openPay}>Record Payment</Btn>}
+            <Btn variant="ghost" onClick={()=>setShowDetail(null)}>Close</Btn>
+          </div>
+        </div>)}
+      </Modal>
+
+      {/* Payment Modal */}
+      <Modal open={showPay} onClose={()=>{setShowPay(false);setError("");}} title="Record Payment" width={440}>
+        <Input label="Amount (AED) *" value={payForm.amount} onChange={v=>setPayForm(p=>({...p,amount:v}))} type="number" placeholder="0.00"/>
+        <Input label="Payment Date *" value={payForm.date} onChange={v=>setPayForm(p=>({...p,date:v}))} type="date"/>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Payment Method</label>
+          <select value={payForm.method} onChange={e=>setPayForm(p=>({...p,method:e.target.value}))}
+            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none" }}>
+            {["bank_transfer","cash","cheque","card"].map(m=><option key={m} value={m}>{m.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <Input label="Reference Number" value={payForm.reference} onChange={v=>setPayForm(p=>({...p,reference:v}))} placeholder="TXN-123456"/>
+        {error && <div style={{ marginTop:10, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:18 }}>
+          <Btn variant="ghost" onClick={()=>{setShowPay(false);setError("");}}>Cancel</Btn>
+          <Btn onClick={recordPayment}>{saving?"Recording…":"Record Payment"}</Btn>
+        </div>
       </Modal>
     </div>
   );
@@ -752,119 +715,162 @@ function Invoices({ token }) {
 /* ═══════════════════════════════════════════════════════════════
    PAGE: CHART OF ACCOUNTS
 ═══════════════════════════════════════════════════════════════ */
-function ChartOfAccounts() {
-  const [showNew, setShowNew] = useState(false);
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All");
-  const types = ["All","Asset","Liability","Equity","Income","COGS","Expense"];
+function ChartOfAccounts({ token }) {
+  const h = { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
   const typeColors = { Asset:C.teal, Liability:C.rose, Equity:C.violet, Income:C.emerald, COGS:C.amber, Expense:C.sky };
+  const types = ["All","Asset","Liability","Equity","Income","COGS","Expense"];
+  const blank = { code:"", name:"", type:"Asset", parent_id:"" };
 
-  const filtered = coaData.filter(a =>
+  const [accounts, setAccounts]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState("");
+  const [typeFilter, setTypeFilter] = useState("All");
+  const [showNew, setShowNew]     = useState(false);
+  const [editRow, setEditRow]     = useState(null);
+  const [form, setForm]           = useState(blank);
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState("");
+  const [toast, setToast]         = useState("");
+
+  const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""),3000); };
+  const fetchAccounts = () => {
+    setLoading(true);
+    fetch(`${API_URL}/api/accounts`,{headers:h}).then(r=>r.json())
+      .then(d=>{ setAccounts(Array.isArray(d)?d:[]); setLoading(false); }).catch(()=>setLoading(false));
+  };
+  useEffect(()=>{ fetchAccounts(); },[token]);
+
+  const filtered = accounts.filter(a =>
     (typeFilter==="All"||a.type===typeFilter) &&
-    (a.name.toLowerCase().includes(search.toLowerCase()) || a.code.includes(search))
+    (a.name.toLowerCase().includes(search.toLowerCase()) || (a.code||"").includes(search))
   );
-  const isChild = a => a.parent !== null;
+  const isChild = a => !!a.parent_id;
+  const fv = k => v => setForm(p=>({...p,[k]:v}));
+
+  const openNew  = () => { setForm(blank); setError(""); setShowNew(true); };
+  const openEdit = row => { setEditRow(row); setForm({ name:row.name }); setError(""); };
+  const closeNew = () => { setShowNew(false); setError(""); };
+  const closeEdit = () => { setEditRow(null); setError(""); };
+
+  const createAccount = async () => {
+    if (!form.code||!form.name||!form.type) { setError("Code, name and type are required."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/accounts`,{ method:"POST", headers:h, body:JSON.stringify({ code:form.code, name:form.name, type:form.type, parent_id:form.parent_id||null }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed to create."); setSaving(false); return; }
+      closeNew(); fetchAccounts(); showToast("Account created!");
+    } catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const updateAccount = async () => {
+    if (!form.name) { setError("Name is required."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/accounts/${editRow.id}`,{ method:"PUT", headers:h, body:JSON.stringify({ name:form.name }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed to update."); setSaving(false); return; }
+      closeEdit(); fetchAccounts(); showToast("Account updated!");
+    } catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const usedData = accounts.length > 0 ? accounts : coaData;
+  const usedFiltered = usedData.filter(a =>
+    (typeFilter==="All"||a.type===typeFilter) &&
+    (a.name.toLowerCase().includes(search.toLowerCase()) || (a.code||"").includes(search))
+  );
+  const isChildRow = a => !!(a.parent_id || a.parent);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:2000, background:C.emerald, color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13, fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.15)" }}>✓ {toast}</div>}
+
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Chart of Accounts</h2>
-          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{coaData.length} accounts configured</p>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{usedData.length} accounts</p>
         </div>
-        <div style={{ display:"flex", gap:10 }}>
-          <Btn variant="ghost">↑ Import Excel</Btn>
-          <Btn onClick={()=>setShowNew(true)}>+ New Account</Btn>
-        </div>
+        <Btn onClick={openNew}>+ New Account</Btn>
       </div>
 
-      {/* Type summary */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10 }}>
         {Object.entries(typeColors).map(([type,color])=>{
-          const accs = coaData.filter(a=>a.type===type);
-          const total = accs.reduce((s,a)=>s+a.balance,0);
+          const accs = usedData.filter(a=>a.type===type);
           return (
-            <Card key={type} style={{ padding:"12px 14px", borderColor:filter===type?color:C.border, cursor:"pointer" }}
+            <Card key={type} style={{ padding:"12px 14px", borderColor:typeFilter===type?color:C.border, cursor:"pointer" }}
               onClick={()=>setTypeFilter(t=>t===type?"All":type)}>
               <div style={{ fontSize:9, fontWeight:700, color, letterSpacing:"0.08em", textTransform:"uppercase" }}>{type}</div>
-              <div style={{ fontSize:16, fontWeight:800, color:C.text, fontFamily:font, marginTop:4 }}>
-                {accs.length}
-              </div>
-              <div style={{ fontSize:10, color:C.textMid, marginTop:2 }}>AED {(total/1000).toFixed(0)}K</div>
+              <div style={{ fontSize:16, fontWeight:800, color:C.text, fontFamily:font, marginTop:4 }}>{accs.length}</div>
             </Card>
           );
         })}
       </div>
 
-      {/* Search & filter */}
       <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-        <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, background:C.surface,
-          border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 14px" }}>
+        <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, background:C.surface, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 14px" }}>
           <span style={{ color:C.textDim }}>⌕</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search accounts..."
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search accounts…"
             style={{ background:"none", border:"none", outline:"none", color:C.text, fontSize:12, flex:1 }}/>
         </div>
         {types.map(t=>(
-          <button key={t} onClick={()=>setTypeFilter(t)} style={{
-            padding:"7px 13px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700,
-            background:typeFilter===t?C.teal:C.surface, color:typeFilter===t?C.bg:C.textMid }}>
-            {t}
-          </button>
+          <button key={t} onClick={()=>setTypeFilter(t)} style={{ padding:"7px 13px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:typeFilter===t?C.teal:C.surface, color:typeFilter===t?C.bg:C.textMid }}>{t}</button>
         ))}
       </div>
 
-      {/* Table */}
       <Card style={{ padding:0, overflow:"hidden" }}>
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
-          <thead><tr>
-            <TH>Code</TH><TH>Account Name</TH><TH>Type</TH><TH>Balance (AED)</TH><TH>Actions</TH>
-          </tr></thead>
+          <thead><tr><TH>Code</TH><TH>Account Name</TH><TH>Type</TH><TH>Balance (AED)</TH><TH>Actions</TH></tr></thead>
           <tbody>
-            {filtered.map((a,i)=>(
-              <tr key={i}
-                onMouseEnter={e=>e.currentTarget.style.background=C.raised}
-                onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            {loading ? <tr><td colSpan={5} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading…</td></tr>
+            : usedFiltered.map((a,i)=>(
+              <tr key={a.id||i} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                 <TD><span style={{ fontFamily:font, color:C.textMid }}>{a.code}</span></TD>
-                <TD>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    {isChild(a) && <span style={{ color:C.textDim, fontSize:12 }}>└</span>}
-                    <span style={{ fontWeight:isChild(a)?400:700, color:isChild(a)?C.text:C.white }}>{a.name}</span>
-                  </div>
-                </TD>
-                <TD>
-                  <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20,
-                    background:`${typeColors[a.type]||C.textDim}18`, color:typeColors[a.type]||C.textDim }}>
-                    {a.type}
-                  </span>
-                </TD>
-                <TD>
-                  <span style={{ fontFamily:font, fontWeight:700, color:a.balance>0?C.text:C.rose }}>
-                    {a.balance.toLocaleString()}
-                  </span>
-                </TD>
-                <TD>
-                  <div style={{ display:"flex", gap:6 }}>
-                    <button style={{ fontSize:11, color:C.textMid, background:C.surface, border:`1px solid ${C.border}`,
-                      borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button>
-                    <button style={{ fontSize:11, color:C.textMid, background:C.surface, border:`1px solid ${C.border}`,
-                      borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Ledger</button>
-                  </div>
-                </TD>
+                <TD><div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  {isChildRow(a) && <span style={{ color:C.textDim, fontSize:12 }}>└</span>}
+                  <span style={{ fontWeight:isChildRow(a)?400:700 }}>{a.name}</span>
+                </div></TD>
+                <TD><span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:`${typeColors[a.type]||C.textDim}18`, color:typeColors[a.type]||C.textDim }}>{a.type}</span></TD>
+                <TD><span style={{ fontFamily:font, fontWeight:700, color:parseFloat(a.balance||0)>=0?C.text:C.rose }}>{parseFloat(a.balance||0).toLocaleString()}</span></TD>
+                <TD><button onClick={()=>openEdit(a)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button></TD>
               </tr>
             ))}
           </tbody>
         </table>
       </Card>
 
-      <Modal open={showNew} onClose={()=>setShowNew(false)} title="New Account" width={480}>
-        <Input label="Account Code" value="" onChange={()=>{}} placeholder="e.g. 1150"/>
-        <Input label="Account Name" value="" onChange={()=>{}} placeholder="e.g. Petty Cash"/>
-        <Select label="Account Type" value="Asset" onChange={()=>{}} options={types.slice(1)}/>
-        <Select label="Parent Account" value="None" onChange={()=>{}} options={["None",...coaData.filter(a=>!a.parent).map(a=>`${a.code} - ${a.name}`)]}/>
-        <Input label="Opening Balance (AED)" value="" onChange={()=>{}} placeholder="0.00" type="number"/>
-        <div style={{ display:"flex", gap:10, marginTop:8 }}>
-          <Btn variant="ghost" onClick={()=>setShowNew(false)}>Cancel</Btn>
-          <Btn>Save Account</Btn>
+      <Modal open={showNew} onClose={closeNew} title="New Account" width={480}>
+        <Input label="Account Code *" value={form.code} onChange={fv("code")} placeholder="e.g. 1150"/>
+        <Input label="Account Name *" value={form.name} onChange={fv("name")} placeholder="e.g. Petty Cash"/>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Account Type *</label>
+          <select value={form.type} onChange={e=>fv("type")(e.target.value)}
+            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none" }}>
+            {types.slice(1).map(t=><option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Parent Account</label>
+          <select value={form.parent_id} onChange={e=>fv("parent_id")(e.target.value)}
+            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none" }}>
+            <option value="">None (top-level)</option>
+            {usedData.filter(a=>!a.parent_id&&!a.parent).map(a=><option key={a.id||a.code} value={a.id}>{a.code} - {a.name}</option>)}
+          </select>
+        </div>
+        {error && <div style={{ padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:16 }}>
+          <Btn variant="ghost" onClick={closeNew}>Cancel</Btn>
+          <Btn onClick={createAccount}>{saving?"Saving…":"Create Account"}</Btn>
+        </div>
+      </Modal>
+
+      <Modal open={!!editRow} onClose={closeEdit} title={`Edit: ${editRow?.code} ${editRow?.name}`} width={420}>
+        <Input label="Account Name *" value={form.name} onChange={fv("name")} placeholder="Account name"/>
+        {error && <div style={{ padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:16 }}>
+          <Btn variant="ghost" onClick={closeEdit}>Cancel</Btn>
+          <Btn onClick={updateAccount}>{saving?"Saving…":"Update"}</Btn>
         </div>
       </Modal>
     </div>
@@ -874,74 +880,112 @@ function ChartOfAccounts() {
 /* ═══════════════════════════════════════════════════════════════
    PAGE: GENERAL LEDGER / JOURNALS
 ═══════════════════════════════════════════════════════════════ */
-function GeneralLedger() {
-  const [showNew, setShowNew] = useState(false);
-  const [expanded, setExpanded] = useState(null);
-  const [lines, setLines] = useState([
-    { account:"", debit:0, credit:0, memo:"" },
-    { account:"", debit:0, credit:0, memo:"" },
-  ]);
-  const totalDr = lines.reduce((a,l)=>a+l.debit,0);
-  const totalCr = lines.reduce((a,l)=>a+l.credit,0);
-  const balanced = totalDr === totalCr && totalDr > 0;
+function GeneralLedger({ token }) {
+  const h = { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
+  const today = new Date().toISOString().slice(0,10);
+  const emptyLine = { account_id:"", debit:0, credit:0, memo:"" };
+  const emptyForm = { date:today, reference:"", narration:"", lines:[{...emptyLine},{...emptyLine}] };
 
-  const addLine = () => setLines(p=>[...p,{ account:"",debit:0,credit:0,memo:"" }]);
-  const updateLine = (i,k,v) => setLines(p=>{ const n=[...p]; n[i]={...n[i],[k]:v}; return n; });
+  const [journals, setJournals]   = useState([]);
+  const [accounts, setAccounts]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [showNew, setShowNew]     = useState(false);
+  const [expanded, setExpanded]   = useState(null);
+  const [form, setForm]           = useState(emptyForm);
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState("");
+  const [toast, setToast]         = useState("");
+
+  const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""),3000); };
+  const fetchJournals = () => {
+    setLoading(true);
+    fetch(`${API_URL}/api/journals`,{headers:h}).then(r=>r.json())
+      .then(d=>{ setJournals(Array.isArray(d.data)?d.data:[]); setLoading(false); }).catch(()=>setLoading(false));
+  };
+  useEffect(()=>{
+    fetchJournals();
+    fetch(`${API_URL}/api/accounts`,{headers:h}).then(r=>r.json()).then(d=>setAccounts(Array.isArray(d)?d:[])).catch(()=>{});
+  },[token]);
+
+  const fv = k => v => setForm(p=>({...p,[k]:v}));
+  const addLine    = () => setForm(p=>({...p,lines:[...p.lines,{...emptyLine}]}));
+  const removeLine = i  => setForm(p=>({...p,lines:p.lines.filter((_,idx)=>idx!==i)}));
+  const updateLine = (i,k,v) => setForm(p=>{ const lines=[...p.lines]; lines[i]={...lines[i],[k]:v}; return {...p,lines}; });
+
+  const totalDr  = form.lines.reduce((a,l)=>a+parseFloat(l.debit||0),0);
+  const totalCr  = form.lines.reduce((a,l)=>a+parseFloat(l.credit||0),0);
+  const balanced = Math.abs(totalDr-totalCr)<0.01 && totalDr>0;
+
+  const usedJournals = journals.length>0 ? journals : journalData;
+
+  const createJournal = async (post=false) => {
+    if (!form.date||form.lines.length<2) { setError("Date and at least 2 lines are required."); return; }
+    if (!balanced) { setError(`Debits (${totalDr.toFixed(2)}) must equal Credits (${totalCr.toFixed(2)})`); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/journals`,{ method:"POST", headers:h, body:JSON.stringify({ date:form.date, reference:form.reference||null, narration:form.narration||null, lines:form.lines }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed to save."); setSaving(false); return; }
+      if (post && data.id) {
+        await fetch(`${API_URL}/api/journals/${data.id}/post`,{method:"PUT",headers:h});
+      }
+      setShowNew(false); setForm(emptyForm); fetchJournals(); showToast(post?"Journal posted!":"Journal saved!");
+    } catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const postJournal = async id => {
+    try { await fetch(`${API_URL}/api/journals/${id}/post`,{method:"PUT",headers:h}); fetchJournals(); showToast("Journal posted!"); }
+    catch {}
+  };
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:2000, background:C.emerald, color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13, fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.15)" }}>✓ {toast}</div>}
+
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
           <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>General Ledger</h2>
-          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>Journal Entries · Dec 2024</p>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{usedJournals.length} journal entries</p>
         </div>
-        <Btn onClick={()=>setShowNew(true)}>+ New Journal Entry</Btn>
+        <Btn onClick={()=>{ setForm(emptyForm); setError(""); setShowNew(true); }}>+ New Journal Entry</Btn>
       </div>
 
-      {journalData.map((jv,i)=>(
-        <Card key={i} style={{ cursor:"pointer" }} onClick={()=>setExpanded(expanded===i?null:i)}>
+      {loading ? <Card><div style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading…</div></Card>
+      : usedJournals.map((jv,i)=>(
+        <Card key={jv.id||i} style={{ cursor:"pointer" }} onClick={()=>setExpanded(expanded===i?null:i)}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div style={{ display:"flex", gap:16, alignItems:"center" }}>
-              <span style={{ fontFamily:font, color:C.teal, fontWeight:700, fontSize:13 }}>{jv.id}</span>
+              <span style={{ fontFamily:font, color:C.teal, fontWeight:700, fontSize:13 }}>{jv.id||jv.reference}</span>
               <span style={{ fontSize:12, color:C.textMid }}>{jv.date}</span>
-              <span style={{ fontSize:12, color:C.text }}>{jv.narration}</span>
-              <span style={{ fontSize:10, color:C.textDim, background:C.surface, padding:"2px 8px", borderRadius:6 }}>{jv.ref}</span>
+              <span style={{ fontSize:12, color:C.text }}>{jv.narration||"—"}</span>
+              {jv.reference && <span style={{ fontSize:10, color:C.textDim, background:C.surface, padding:"2px 8px", borderRadius:6 }}>{jv.reference}</span>}
             </div>
             <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-              <span style={{ fontFamily:font, fontWeight:700, color:C.text }}>
-                AED {jv.lines.reduce((a,l)=>a+l.dr,0).toLocaleString()}
-              </span>
-              <Pill status={jv.status}/>
+              <Pill status={jv.status||"Draft"}/>
               <span style={{ color:C.textDim, fontSize:14 }}>{expanded===i?"▲":"▼"}</span>
             </div>
           </div>
-
           {expanded===i && (
             <div style={{ marginTop:16, borderTop:`1px solid ${C.border}`, paddingTop:16 }}>
-              <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                <thead><tr>
-                  <TH>Account</TH><TH>Debit (AED)</TH><TH>Credit (AED)</TH>
-                </tr></thead>
-                <tbody>
-                  {jv.lines.map((l,j)=>(
-                    <tr key={j}>
-                      <TD><span style={{ color:C.text }}>{l.account}</span></TD>
-                      <TD><span style={{ fontFamily:font, color:C.emerald }}>{l.dr>0?l.dr.toLocaleString():"—"}</span></TD>
-                      <TD><span style={{ fontFamily:font, color:C.rose }}>{l.cr>0?l.cr.toLocaleString():"—"}</span></TD>
-                    </tr>
-                  ))}
-                  <tr style={{ background:C.raised }}>
-                    <TD><strong>TOTAL</strong></TD>
-                    <TD><strong style={{ fontFamily:font, color:C.emerald }}>{jv.lines.reduce((a,l)=>a+l.dr,0).toLocaleString()}</strong></TD>
-                    <TD><strong style={{ fontFamily:font, color:C.rose }}>{jv.lines.reduce((a,l)=>a+l.cr,0).toLocaleString()}</strong></TD>
-                  </tr>
-                </tbody>
-              </table>
-              {jv.status==="Draft" && (
+              {jv.lines ? (
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <thead><tr><TH>Account</TH><TH>Memo</TH><TH>Debit (AED)</TH><TH>Credit (AED)</TH></tr></thead>
+                  <tbody>
+                    {jv.lines.map((l,j)=>(
+                      <tr key={j}>
+                        <TD>{l.account_name||l.account||"—"}</TD>
+                        <TD style={{ color:C.textMid }}>{l.memo||"—"}</TD>
+                        <TD><span style={{ fontFamily:font, color:C.emerald }}>{parseFloat(l.debit||l.dr||0)>0?parseFloat(l.debit||l.dr||0).toLocaleString():"—"}</span></TD>
+                        <TD><span style={{ fontFamily:font, color:C.rose }}>{parseFloat(l.credit||l.cr||0)>0?parseFloat(l.credit||l.cr||0).toLocaleString():"—"}</span></TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <div style={{ fontSize:12, color:C.textDim, padding:"8px 0" }}>Click to expand lines…</div>}
+              {(jv.status==="draft"||jv.status==="Draft") && jv.id && (
                 <div style={{ display:"flex", gap:10, marginTop:12 }}>
-                  <Btn>Post Journal</Btn>
-                  <Btn variant="ghost">Edit</Btn>
-                  <Btn variant="danger">Delete</Btn>
+                  <Btn onClick={e=>{e.stopPropagation();postJournal(jv.id);}}>Post Journal</Btn>
                 </div>
               )}
             </div>
@@ -949,70 +993,46 @@ function GeneralLedger() {
         </Card>
       ))}
 
-      <Modal open={showNew} onClose={()=>setShowNew(false)} title="New Journal Entry" width={720}>
+      <Modal open={showNew} onClose={()=>{setShowNew(false);setError("");}} title="New Journal Entry" width={760}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:16 }}>
-          <Input label="Journal Date" value="" onChange={()=>{}} type="date"/>
-          <Input label="Reference" value="" onChange={()=>{}} placeholder="e.g. INV-0842"/>
-          <Input label="Narration" value="" onChange={()=>{}} placeholder="Entry description..."/>
+          <Input label="Journal Date *" value={form.date} onChange={fv("date")} type="date"/>
+          <Input label="Reference" value={form.reference} onChange={fv("reference")} placeholder="e.g. INV-0001"/>
+          <Input label="Narration" value={form.narration} onChange={fv("narration")} placeholder="Entry description…"/>
         </div>
-        <table style={{ width:"100%", borderCollapse:"collapse", marginBottom:12 }}>
-          <thead><tr><TH>Account</TH><TH>Memo</TH><TH>Debit (AED)</TH><TH>Credit (AED)</TH></tr></thead>
+        <table style={{ width:"100%", borderCollapse:"collapse", marginBottom:10 }}>
+          <thead><tr><TH>Account</TH><TH>Memo</TH><TH>Debit (AED)</TH><TH>Credit (AED)</TH><TH></TH></tr></thead>
           <tbody>
-            {lines.map((l,i)=>(
+            {form.lines.map((l,i)=>(
               <tr key={i}>
                 <TD>
-                  <select value={l.account} onChange={e=>updateLine(i,"account",e.target.value)}
-                    style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6,
-                      padding:"6px 8px", color:C.text, fontSize:11, width:"100%" }}>
-                    <option value="">Select account...</option>
-                    {coaData.filter(a=>a.parent).map(a=><option key={a.code} value={a.code}>{a.code} - {a.name}</option>)}
+                  <select value={l.account_id} onChange={e=>updateLine(i,"account_id",e.target.value)}
+                    style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:11, width:"100%" }}>
+                    <option value="">Select account…</option>
+                    {(accounts.length>0?accounts:coaData).map(a=><option key={a.id||a.code} value={a.id||a.code}>{a.code} — {a.name}</option>)}
                   </select>
                 </TD>
-                <TD>
-                  <input value={l.memo} onChange={e=>updateLine(i,"memo",e.target.value)}
-                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
-                      padding:"6px 8px", color:C.text, fontSize:11, width:"90%" }}/>
-                </TD>
-                <TD>
-                  <input type="number" value={l.debit||""} onChange={e=>updateLine(i,"debit",+e.target.value)}
-                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
-                      padding:"6px 8px", color:C.emerald, fontSize:11, width:100, fontFamily:font }}/>
-                </TD>
-                <TD>
-                  <input type="number" value={l.credit||""} onChange={e=>updateLine(i,"credit",+e.target.value)}
-                    style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
-                      padding:"6px 8px", color:C.rose, fontSize:11, width:100, fontFamily:font }}/>
-                </TD>
+                <TD><input value={l.memo} onChange={e=>updateLine(i,"memo",e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:11, width:"90%" }}/></TD>
+                <TD><input type="number" value={l.debit||""} onChange={e=>updateLine(i,"debit",+e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.emerald, fontSize:11, width:100, fontFamily:font }}/></TD>
+                <TD><input type="number" value={l.credit||""} onChange={e=>updateLine(i,"credit",+e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.rose, fontSize:11, width:100, fontFamily:font }}/></TD>
+                <TD><button onClick={()=>removeLine(i)} style={{ background:"none", border:"none", cursor:"pointer", color:C.rose, fontSize:18 }}>×</button></TD>
               </tr>
             ))}
             <tr style={{ background:C.raised }}>
               <TD colSpan={2}><strong style={{ fontFamily:font }}>TOTAL</strong></TD>
               <TD><strong style={{ fontFamily:font, color:C.emerald }}>{totalDr.toLocaleString()}</strong></TD>
               <TD><strong style={{ fontFamily:font, color:C.rose }}>{totalCr.toLocaleString()}</strong></TD>
+              <TD></TD>
             </tr>
           </tbody>
         </table>
-        <button onClick={addLine} style={{ fontSize:11, color:C.teal, background:"none",
-          border:`1px dashed ${C.teal}40`, borderRadius:8, padding:"7px 14px", cursor:"pointer", width:"100%" }}>
-          + Add Line
-        </button>
-        {!balanced && totalDr>0 && (
-          <div style={{ marginTop:12, padding:"10px 14px", background:`${C.rose}15`, border:`1px solid ${C.rose}30`,
-            borderRadius:8, fontSize:12, color:C.rose }}>
-            ⚠ Entry is not balanced — Debit and Credit must match.
-            Difference: AED {Math.abs(totalDr-totalCr).toLocaleString()}
-          </div>
-        )}
-        {balanced && (
-          <div style={{ marginTop:12, padding:"10px 14px", background:`${C.emerald}15`, border:`1px solid ${C.emerald}30`,
-            borderRadius:8, fontSize:12, color:C.emerald }}>
-            ✓ Entry is balanced — AED {totalDr.toLocaleString()}
-          </div>
-        )}
-        <div style={{ display:"flex", gap:10, marginTop:14 }}>
-          <Btn variant="ghost" onClick={()=>setShowNew(false)}>Cancel</Btn>
-          <Btn variant="ghost" style={{ opacity:balanced?1:0.4 }}>Save Draft</Btn>
-          <Btn style={{ opacity:balanced?1:0.4 }}>Post Entry</Btn>
+        <button onClick={addLine} style={{ fontSize:11, color:C.teal, background:"none", border:`1px dashed ${C.teal}40`, borderRadius:8, padding:"7px 14px", cursor:"pointer", width:"100%", marginBottom:12 }}>+ Add Line</button>
+        {totalDr>0 && !balanced && <div style={{ padding:"10px 14px", background:`${C.rose}15`, border:`1px solid ${C.rose}30`, borderRadius:8, fontSize:12, color:C.rose, marginBottom:8 }}>⚠ Not balanced — difference: AED {Math.abs(totalDr-totalCr).toFixed(2)}</div>}
+        {balanced && <div style={{ padding:"10px 14px", background:`${C.emerald}15`, border:`1px solid ${C.emerald}30`, borderRadius:8, fontSize:12, color:C.emerald, marginBottom:8 }}>✓ Balanced — AED {totalDr.toLocaleString()}</div>}
+        {error && <div style={{ padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose, marginBottom:8 }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:6 }}>
+          <Btn variant="ghost" onClick={()=>{setShowNew(false);setError("");}}>Cancel</Btn>
+          <Btn variant="ghost" onClick={()=>createJournal(false)} style={{ opacity:balanced?1:0.45, pointerEvents:balanced?"auto":"none" }}>{saving?"Saving…":"Save Draft"}</Btn>
+          <Btn onClick={()=>createJournal(true)} style={{ opacity:balanced?1:0.45, pointerEvents:balanced?"auto":"none" }}>{saving?"Posting…":"Post Entry"}</Btn>
         </div>
       </Modal>
     </div>
@@ -1521,6 +1541,547 @@ function Reports() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   PAGE: CUSTOMERS
+═══════════════════════════════════════════════════════════════ */
+function Customers({ token }) {
+  const h = { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
+  const blank = { name:"", email:"", phone:"", address:"", credit_limit:"0" };
+  const [rows, setRows]         = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState("");
+  const [modal, setModal]       = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm]         = useState(blank);
+  const [viewInvs, setViewInvs] = useState([]);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
+  const [toast, setToast]       = useState("");
+
+  const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""),3000); };
+
+  const fetchRows = () => {
+    setLoading(true);
+    const q = search ? `?search=${encodeURIComponent(search)}` : "";
+    fetch(`${API_URL}/api/customers${q}`, { headers:h })
+      .then(r=>r.json()).then(d=>{ setRows(Array.isArray(d.data)?d.data:[]); setLoading(false); })
+      .catch(()=>setLoading(false));
+  };
+  useEffect(()=>{ fetchRows(); }, [token, search]);
+
+  const openNew    = ()    => { setForm(blank); setError(""); setModal("new"); };
+  const openEdit   = row   => { setSelected(row); setForm({ name:row.name, email:row.email||"", phone:row.phone||"", address:row.address||"", credit_limit:String(row.credit_limit||0) }); setError(""); setModal("edit"); };
+  const openDelete = row   => { setSelected(row); setModal("delete"); };
+  const openView   = async row => {
+    setSelected(row); setModal("view"); setViewInvs([]);
+    try { const r = await fetch(`${API_URL}/api/customers/${row.id}/invoices`,{headers:h}); const d = await r.json(); setViewInvs(Array.isArray(d)?d:[]); } catch {}
+  };
+  const closeModal = () => { setModal(null); setSelected(null); setError(""); };
+  const fv = k => v => setForm(p=>({...p,[k]:v}));
+
+  const save = async () => {
+    if (!form.name.trim()) { setError("Customer name is required."); return; }
+    setSaving(true); setError("");
+    const body = { name:form.name, email:form.email||null, phone:form.phone||null, address:form.address||null, credit_limit:parseFloat(form.credit_limit)||0 };
+    try {
+      const url = modal==="edit" ? `${API_URL}/api/customers/${selected.id}` : `${API_URL}/api/customers`;
+      const res = await fetch(url,{ method:modal==="edit"?"PUT":"POST", headers:h, body:JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed to save."); setSaving(false); return; }
+      closeModal(); fetchRows(); showToast(modal==="edit"?"Customer updated!":"Customer created!");
+    } catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const softDelete = async () => {
+    setSaving(true);
+    try { await fetch(`${API_URL}/api/customers/${selected.id}`,{method:"PUT",headers:h,body:JSON.stringify({is_active:false})}); closeModal(); fetchRows(); showToast("Customer removed."); }
+    catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const outstanding = list => list.reduce((a,i)=>a+(parseFloat(i.total||0)-parseFloat(i.paid_amount||0)),0);
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:2000, background:C.emerald, color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13, fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.15)" }}>✓ {toast}</div>}
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Customers</h2>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{rows.length} customers</p>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, background:C.surface, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 14px", width:220 }}>
+            <span style={{ color:C.textDim }}>⌕</span>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers…"
+              style={{ background:"none", border:"none", outline:"none", color:C.text, fontSize:12, flex:1 }}/>
+          </div>
+          <Btn onClick={openNew}>+ New Customer</Btn>
+        </div>
+      </div>
+
+      <Card style={{ padding:0, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
+          <thead><tr><TH>Name</TH><TH>Email</TH><TH>Phone</TH><TH>Credit Limit</TH><TH>Status</TH><TH>Actions</TH></tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading…</td></tr>
+            : rows.length===0 ? <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No customers yet. Add your first customer.</td></tr>
+            : rows.map(row=>(
+              <tr key={row.id} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <TD><span onClick={()=>openView(row)} style={{ color:"#2563EB", cursor:"pointer", fontWeight:600 }}>{row.name}</span></TD>
+                <TD style={{ color:C.textMid }}>{row.email||"—"}</TD>
+                <TD style={{ color:C.textMid }}>{row.phone||"—"}</TD>
+                <TD><span style={{ fontFamily:font }}>AED {parseFloat(row.credit_limit||0).toLocaleString()}</span></TD>
+                <TD><Pill status={row.is_active?"Active":"Inactive"}/></TD>
+                <TD><div style={{ display:"flex", gap:6 }}>
+                  <button onClick={()=>openView(row)} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
+                  <button onClick={()=>openEdit(row)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button>
+                  <button onClick={()=>openDelete(row)} style={{ fontSize:11, color:C.rose, background:`${C.rose}10`, border:`1px solid ${C.rose}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Delete</button>
+                </div></TD>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Modal open={modal==="new"||modal==="edit"} onClose={closeModal} title={modal==="edit"?"Edit Customer":"New Customer"} width={500}>
+        <Input label="Customer Name *" value={form.name} onChange={fv("name")} placeholder="e.g. Acme Corp Ltd"/>
+        <Input label="Email Address" value={form.email} onChange={fv("email")} type="email" placeholder="info@acmecorp.com"/>
+        <Input label="Phone Number" value={form.phone} onChange={fv("phone")} placeholder="+971 50 123 4567"/>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Address</label>
+          <textarea value={form.address} onChange={e=>fv("address")(e.target.value)} rows={3} placeholder="Full address…"
+            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", fontFamily:sansFont, resize:"vertical" }}/>
+        </div>
+        <Input label="Credit Limit (AED)" value={form.credit_limit} onChange={fv("credit_limit")} type="number" placeholder="0"/>
+        {error && <div style={{ marginTop:10, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:18 }}>
+          <Btn variant="ghost" onClick={closeModal}>Cancel</Btn>
+          <Btn onClick={save}>{saving?"Saving…":modal==="edit"?"Update Customer":"Create Customer"}</Btn>
+        </div>
+      </Modal>
+
+      <Modal open={modal==="delete"} onClose={closeModal} title="Remove Customer" width={420}>
+        <p style={{ margin:"0 0 20px", fontSize:13, color:C.text }}>Are you sure you want to remove <strong>{selected?.name}</strong>?</p>
+        <div style={{ display:"flex", gap:10 }}>
+          <Btn variant="ghost" onClick={closeModal}>Cancel</Btn>
+          <Btn variant="danger" onClick={softDelete}>{saving?"Removing…":"Yes, Remove"}</Btn>
+        </div>
+      </Modal>
+
+      <Modal open={modal==="view"} onClose={closeModal} title={selected?.name||""} width={640}>
+        {selected && (<div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:18 }}>
+            {[["Email",selected.email||"—"],["Phone",selected.phone||"—"],["Credit Limit",`AED ${parseFloat(selected.credit_limit||0).toLocaleString()}`],["Status",""]].map(([l,v],i)=>(
+              <div key={i}>
+                <div style={{ fontSize:10, color:C.textDim, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:4 }}>{l}</div>
+                <div style={{ fontSize:13, color:C.text, fontWeight:600 }}>{l==="Status"?<Pill status={selected.is_active?"Active":"Inactive"}/>:v}</div>
+              </div>
+            ))}
+          </div>
+          {selected.address && <div style={{ marginBottom:14 }}><div style={{ fontSize:10, color:C.textDim, textTransform:"uppercase", marginBottom:4 }}>Address</div><div style={{ fontSize:12, color:C.text }}>{selected.address}</div></div>}
+          <div style={{ fontSize:11, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10 }}>
+            Invoices — Outstanding: <span style={{ color:C.amber }}>AED {outstanding(viewInvs).toLocaleString()}</span>
+          </div>
+          {viewInvs.length===0
+            ? <div style={{ padding:16, textAlign:"center", color:C.textDim, fontSize:12, background:C.raised, borderRadius:10 }}>No invoices found</div>
+            : <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr><TH>Invoice #</TH><TH>Date</TH><TH>Amount</TH><TH>Paid</TH><TH>Status</TH></tr></thead>
+                <tbody>{viewInvs.map((inv,i)=>(
+                  <tr key={i}><TD><span style={{ fontFamily:font, fontWeight:700 }}>{inv.number}</span></TD>
+                  <TD style={{ color:C.textMid }}>{inv.date}</TD>
+                  <TD><span style={{ fontFamily:font }}>AED {parseFloat(inv.total||0).toLocaleString()}</span></TD>
+                  <TD><span style={{ fontFamily:font, color:C.emerald }}>AED {parseFloat(inv.paid_amount||0).toLocaleString()}</span></TD>
+                  <TD><Pill status={inv.status}/></TD></tr>
+                ))}</tbody>
+              </table>
+          }
+          <div style={{ marginTop:18 }}><Btn variant="ghost" onClick={closeModal}>Close</Btn></div>
+        </div>)}
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE: SUPPLIERS
+═══════════════════════════════════════════════════════════════ */
+function Suppliers({ token }) {
+  const h = { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
+  const blank = { name:"", email:"", phone:"", address:"" };
+  const [rows, setRows]           = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState("");
+  const [modal, setModal]         = useState(null);
+  const [selected, setSelected]   = useState(null);
+  const [form, setForm]           = useState(blank);
+  const [viewBills, setViewBills] = useState([]);
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState("");
+  const [toast, setToast]         = useState("");
+
+  const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""),3000); };
+  const fetchRows = () => {
+    setLoading(true);
+    const q = search ? `?search=${encodeURIComponent(search)}` : "";
+    fetch(`${API_URL}/api/vendors${q}`,{headers:h}).then(r=>r.json())
+      .then(d=>{ setRows(Array.isArray(d.data)?d.data:[]); setLoading(false); }).catch(()=>setLoading(false));
+  };
+  useEffect(()=>{ fetchRows(); },[token,search]);
+
+  const openNew    = ()    => { setForm(blank); setError(""); setModal("new"); };
+  const openEdit   = row   => { setSelected(row); setForm({ name:row.name, email:row.email||"", phone:row.phone||"", address:row.address||"" }); setError(""); setModal("edit"); };
+  const openDelete = row   => { setSelected(row); setModal("delete"); };
+  const openView   = async row => {
+    setSelected(row); setModal("view"); setViewBills([]);
+    try { const r = await fetch(`${API_URL}/api/vendors/${row.id}/bills`,{headers:h}); const d = await r.json(); setViewBills(Array.isArray(d)?d:[]); } catch {}
+  };
+  const closeModal = () => { setModal(null); setSelected(null); setError(""); };
+  const fv = k => v => setForm(p=>({...p,[k]:v}));
+
+  const save = async () => {
+    if (!form.name.trim()) { setError("Supplier name is required."); return; }
+    setSaving(true); setError("");
+    const body = { name:form.name, email:form.email||null, phone:form.phone||null, address:form.address||null };
+    try {
+      const url = modal==="edit" ? `${API_URL}/api/vendors/${selected.id}` : `${API_URL}/api/vendors`;
+      const res = await fetch(url,{ method:modal==="edit"?"PUT":"POST", headers:h, body:JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed to save."); setSaving(false); return; }
+      closeModal(); fetchRows(); showToast(modal==="edit"?"Supplier updated!":"Supplier created!");
+    } catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const softDelete = async () => {
+    setSaving(true);
+    try { await fetch(`${API_URL}/api/vendors/${selected.id}`,{method:"PUT",headers:h,body:JSON.stringify({is_active:false})}); closeModal(); fetchRows(); showToast("Supplier removed."); }
+    catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:2000, background:C.emerald, color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13, fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.15)" }}>✓ {toast}</div>}
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Suppliers</h2>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{rows.length} suppliers</p>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, background:C.surface, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 14px", width:220 }}>
+            <span style={{ color:C.textDim }}>⌕</span>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search suppliers…"
+              style={{ background:"none", border:"none", outline:"none", color:C.text, fontSize:12, flex:1 }}/>
+          </div>
+          <Btn onClick={openNew}>+ New Supplier</Btn>
+        </div>
+      </div>
+
+      <Card style={{ padding:0, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
+          <thead><tr><TH>Name</TH><TH>Email</TH><TH>Phone</TH><TH>Address</TH><TH>Status</TH><TH>Actions</TH></tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading…</td></tr>
+            : rows.length===0 ? <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No suppliers yet.</td></tr>
+            : rows.map(row=>(
+              <tr key={row.id} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <TD><span onClick={()=>openView(row)} style={{ color:"#2563EB", cursor:"pointer", fontWeight:600 }}>{row.name}</span></TD>
+                <TD style={{ color:C.textMid }}>{row.email||"—"}</TD>
+                <TD style={{ color:C.textMid }}>{row.phone||"—"}</TD>
+                <TD style={{ color:C.textMid, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.address||"—"}</TD>
+                <TD><Pill status={row.is_active?"Active":"Inactive"}/></TD>
+                <TD><div style={{ display:"flex", gap:6 }}>
+                  <button onClick={()=>openView(row)} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
+                  <button onClick={()=>openEdit(row)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button>
+                  <button onClick={()=>openDelete(row)} style={{ fontSize:11, color:C.rose, background:`${C.rose}10`, border:`1px solid ${C.rose}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Delete</button>
+                </div></TD>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Modal open={modal==="new"||modal==="edit"} onClose={closeModal} title={modal==="edit"?"Edit Supplier":"New Supplier"} width={500}>
+        <Input label="Supplier Name *" value={form.name} onChange={fv("name")} placeholder="e.g. AWS Services"/>
+        <Input label="Email Address" value={form.email} onChange={fv("email")} type="email" placeholder="billing@supplier.com"/>
+        <Input label="Phone Number" value={form.phone} onChange={fv("phone")} placeholder="+971 4 123 4567"/>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Address</label>
+          <textarea value={form.address} onChange={e=>fv("address")(e.target.value)} rows={3}
+            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box", fontFamily:sansFont, resize:"vertical" }}/>
+        </div>
+        {error && <div style={{ marginTop:10, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:18 }}>
+          <Btn variant="ghost" onClick={closeModal}>Cancel</Btn>
+          <Btn onClick={save}>{saving?"Saving…":modal==="edit"?"Update Supplier":"Create Supplier"}</Btn>
+        </div>
+      </Modal>
+
+      <Modal open={modal==="delete"} onClose={closeModal} title="Remove Supplier" width={420}>
+        <p style={{ margin:"0 0 20px", fontSize:13, color:C.text }}>Are you sure you want to remove <strong>{selected?.name}</strong>?</p>
+        <div style={{ display:"flex", gap:10 }}>
+          <Btn variant="ghost" onClick={closeModal}>Cancel</Btn>
+          <Btn variant="danger" onClick={softDelete}>{saving?"Removing…":"Yes, Remove"}</Btn>
+        </div>
+      </Modal>
+
+      <Modal open={modal==="view"} onClose={closeModal} title={selected?.name||""} width={600}>
+        {selected && (<div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:18 }}>
+            {[["Email",selected.email||"—"],["Phone",selected.phone||"—"],["Status",""]].map(([l,v],i)=>(
+              <div key={i}><div style={{ fontSize:10, color:C.textDim, textTransform:"uppercase", marginBottom:4 }}>{l}</div>
+              <div style={{ fontSize:13, color:C.text, fontWeight:600 }}>{l==="Status"?<Pill status={selected.is_active?"Active":"Inactive"}/>:v}</div></div>
+            ))}
+          </div>
+          <div style={{ fontSize:11, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10 }}>Bills</div>
+          {viewBills.length===0
+            ? <div style={{ padding:16, textAlign:"center", color:C.textDim, fontSize:12, background:C.raised, borderRadius:10 }}>No bills found</div>
+            : <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr><TH>Bill #</TH><TH>Date</TH><TH>Amount</TH><TH>Status</TH></tr></thead>
+                <tbody>{viewBills.map((b,i)=>(
+                  <tr key={i}><TD><span style={{ fontFamily:font, fontWeight:700 }}>{b.number}</span></TD>
+                  <TD style={{ color:C.textMid }}>{b.date}</TD>
+                  <TD><span style={{ fontFamily:font }}>AED {parseFloat(b.total||0).toLocaleString()}</span></TD>
+                  <TD><Pill status={b.status}/></TD></tr>
+                ))}</tbody>
+              </table>
+          }
+          <div style={{ marginTop:18 }}><Btn variant="ghost" onClick={closeModal}>Close</Btn></div>
+        </div>)}
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAGE: BILLS
+═══════════════════════════════════════════════════════════════ */
+function Bills({ token }) {
+  const h = { Authorization:`Bearer ${token}`, "Content-Type":"application/json" };
+  const today = new Date().toISOString().slice(0,10);
+  const emptyLine = { description:"", quantity:1, unit_price:0 };
+  const emptyForm = { vendor_id:"", number:"", date:today, due_date:"", notes:"", items:[{...emptyLine}] };
+  const emptyPay  = { amount:"", date:today, method:"bank_transfer", reference:"" };
+
+  const [bills, setBills]           = useState([]);
+  const [vendors, setVendors]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [filter, setFilter]         = useState("All");
+  const [showNew, setShowNew]       = useState(false);
+  const [showDetail, setShowDetail] = useState(null);
+  const [showPay, setShowPay]       = useState(false);
+  const [form, setForm]             = useState(emptyForm);
+  const [payForm, setPayForm]       = useState(emptyPay);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
+  const [toast, setToast]           = useState("");
+
+  const showToast = msg => { setToast(msg); setTimeout(()=>setToast(""),3000); };
+
+  const fetchBills = () => {
+    setLoading(true);
+    fetch(`${API_URL}/api/bills`,{headers:h}).then(r=>r.json())
+      .then(d=>{ setBills(Array.isArray(d.data)?d.data:[]); setLoading(false); }).catch(()=>setLoading(false));
+  };
+  useEffect(()=>{
+    fetchBills();
+    fetch(`${API_URL}/api/vendors`,{headers:h}).then(r=>r.json()).then(d=>setVendors(Array.isArray(d.data)?d.data:[])).catch(()=>{});
+  },[token]);
+
+  const nextNum = () => { const n=bills.map(b=>parseInt((b.number||"").replace(/\D/g,""))||0); return `BILL-${String(Math.max(0,...n)+1).padStart(4,"0")}`; };
+  const openNew = () => { setForm({...emptyForm,number:nextNum(),date:today}); setError(""); setShowNew(true); };
+  const filtered = filter==="All" ? bills : bills.filter(b=>b.status===filter);
+  const lineTotal = form.items.reduce((a,it)=>a+(parseFloat(it.quantity||1)*parseFloat(it.unit_price||0)),0);
+  const addLine = () => setForm(p=>({...p,items:[...p.items,{...emptyLine}]}));
+  const removeLine = i => setForm(p=>({...p,items:p.items.filter((_,idx)=>idx!==i)}));
+  const updateLine = (i,k,v) => setForm(p=>{ const items=[...p.items]; items[i]={...items[i],[k]:v}; return {...p,items}; });
+  const fv = k => v => setForm(p=>({...p,[k]:v}));
+
+  const createBill = async () => {
+    if (!form.vendor_id||!form.number||!form.date||!form.due_date) { setError("Supplier, bill number, date and due date are required."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/bills`,{ method:"POST", headers:h, body:JSON.stringify({ vendor_id:form.vendor_id, number:form.number, date:form.date, due_date:form.due_date, notes:form.notes||null, lines:form.items }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed to create bill."); setSaving(false); return; }
+      setShowNew(false); fetchBills(); showToast("Bill created!");
+    } catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const openPay = () => {
+    const bal = parseFloat(showDetail.total||0)-parseFloat(showDetail.paid_amount||0);
+    setPayForm({...emptyPay, amount:bal.toFixed(2)}); setError(""); setShowPay(true);
+  };
+
+  const recordPayment = async () => {
+    if (!payForm.amount||parseFloat(payForm.amount)<=0) { setError("Enter a valid amount."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`${API_URL}/api/bills/${showDetail.id}/payment`,{ method:"POST", headers:h, body:JSON.stringify({ amount:parseFloat(payForm.amount), date:payForm.date, method:payForm.method, reference:payForm.reference||null }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error||"Failed."); setSaving(false); return; }
+      setShowPay(false); setShowDetail(null); fetchBills(); showToast("Payment recorded!");
+    } catch { setError("Network error."); }
+    setSaving(false);
+  };
+
+  const approveBill = async id => {
+    try { await fetch(`${API_URL}/api/bills/${id}/approve`,{method:"PUT",headers:h}); fetchBills(); showToast("Bill approved!"); }
+    catch {}
+  };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+      {toast && <div style={{ position:"fixed", top:20, right:20, zIndex:2000, background:C.emerald, color:"#fff", padding:"12px 20px", borderRadius:10, fontSize:13, fontWeight:600, boxShadow:"0 4px 20px rgba(0,0,0,0.15)" }}>✓ {toast}</div>}
+
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Bills</h2>
+          <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>{bills.length} bills · AED {bills.reduce((a,b)=>a+parseFloat(b.total||0),0).toLocaleString()} total</p>
+        </div>
+        <Btn onClick={openNew}>+ New Bill</Btn>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+        {[
+          { label:"Total Bills",      value:bills.reduce((a,b)=>a+parseFloat(b.total||0),0),                           color:C.teal },
+          { label:"Paid",             value:bills.reduce((a,b)=>a+parseFloat(b.paid_amount||0),0),                     color:C.emerald },
+          { label:"Outstanding",      value:bills.reduce((a,b)=>a+parseFloat(b.total||0)-parseFloat(b.paid_amount||0),0), color:C.amber },
+          { label:"Pending Approval", value:bills.filter(b=>b.status==="draft").length, color:C.rose, isCount:true },
+        ].map((s,i)=>(
+          <Card key={i} style={{ padding:"14px 18px" }}>
+            <div style={{ fontSize:10, color:C.textMid, letterSpacing:"0.07em", textTransform:"uppercase", fontFamily:font }}>{s.label}</div>
+            <div style={{ fontSize:20, fontWeight:800, color:s.color, marginTop:6, fontFamily:font }}>{s.isCount?s.value:`AED ${s.value.toLocaleString()}`}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div style={{ display:"flex", gap:6 }}>
+        {["All","draft","approved","paid","partial","overdue"].map(s=>(
+          <button key={s} onClick={()=>setFilter(s)} style={{ padding:"6px 14px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:filter===s?C.teal:C.surface, color:filter===s?C.bg:C.textMid }}>{s}</button>
+        ))}
+      </div>
+
+      <Card style={{ padding:0, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
+          <thead><tr><TH>Bill #</TH><TH>Supplier</TH><TH>Date</TH><TH>Due Date</TH><TH>Amount</TH><TH>Paid</TH><TH>Status</TH><TH>Actions</TH></tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading…</td></tr>
+            : filtered.length===0 ? <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No bills found.</td></tr>
+            : filtered.map((bill,i)=>(
+              <tr key={bill.id||i} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <TD><span style={{ color:C.teal, fontFamily:font, fontWeight:700 }}>{bill.number}</span></TD>
+                <TD>{bill.vendor_name||"—"}</TD>
+                <TD style={{ color:C.textMid }}>{bill.date}</TD>
+                <TD style={{ color:bill.status==="overdue"?C.rose:C.textMid }}>{bill.due_date}</TD>
+                <TD><span style={{ fontFamily:font, fontWeight:700 }}>AED {parseFloat(bill.total||0).toLocaleString()}</span></TD>
+                <TD><span style={{ fontFamily:font, color:C.emerald }}>AED {parseFloat(bill.paid_amount||0).toLocaleString()}</span></TD>
+                <TD><Pill status={bill.status}/></TD>
+                <TD><div style={{ display:"flex", gap:6 }}>
+                  <button onClick={()=>setShowDetail(bill)} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
+                  {bill.status==="draft" && <button onClick={()=>approveBill(bill.id)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Approve</button>}
+                </div></TD>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      {/* New Bill Modal */}
+      <Modal open={showNew} onClose={()=>{setShowNew(false);setError("");}} title="New Bill" width={700}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:4 }}>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Supplier *</label>
+            <select value={form.vendor_id} onChange={e=>fv("vendor_id")(e.target.value)}
+              style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none" }}>
+              <option value="">Select supplier…</option>
+              {vendors.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </div>
+          <Input label="Bill Number" value={form.number} onChange={fv("number")} placeholder="BILL-0001"/>
+          <Input label="Bill Date" value={form.date} onChange={fv("date")} type="date"/>
+          <Input label="Due Date" value={form.due_date} onChange={fv("due_date")} type="date"/>
+          <Input label="Notes" value={form.notes} onChange={fv("notes")} placeholder="Optional…"/>
+        </div>
+        <div style={{ fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10 }}>Line Items</div>
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
+          <thead><tr><TH>Description</TH><TH>Qty</TH><TH>Unit Price</TH><TH>Amount</TH><TH></TH></tr></thead>
+          <tbody>
+            {form.items.map((item,i)=>(
+              <tr key={i}>
+                <TD><input value={item.description} onChange={e=>updateLine(i,"description",e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:12, width:"95%" }}/></TD>
+                <TD><input type="number" value={item.quantity} onChange={e=>updateLine(i,"quantity",+e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:12, width:55 }}/></TD>
+                <TD><input type="number" value={item.unit_price} onChange={e=>updateLine(i,"unit_price",+e.target.value)} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6, padding:"6px 8px", color:C.text, fontSize:12, width:90 }}/></TD>
+                <TD style={{ fontFamily:font, color:C.teal }}>AED {((item.quantity||1)*(item.unit_price||0)).toLocaleString()}</TD>
+                <TD><button onClick={()=>removeLine(i)} style={{ background:"none", border:"none", cursor:"pointer", color:C.rose, fontSize:18, lineHeight:1 }}>×</button></TD>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button onClick={addLine} style={{ marginTop:10, fontSize:11, color:C.teal, background:"none", border:`1px dashed ${C.teal}40`, borderRadius:8, padding:"7px 14px", cursor:"pointer", width:"100%" }}>+ Add Line</button>
+        <div style={{ marginTop:12, padding:14, background:C.surface, borderRadius:10, display:"flex", justifyContent:"space-between" }}>
+          <span style={{ fontSize:13, fontWeight:700, color:C.text }}>Total</span>
+          <span style={{ fontSize:14, fontWeight:800, color:C.teal, fontFamily:font }}>AED {lineTotal.toLocaleString()}</span>
+        </div>
+        {error && <div style={{ marginTop:10, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:18 }}>
+          <Btn variant="ghost" onClick={()=>{setShowNew(false);setError("");}}>Cancel</Btn>
+          <Btn onClick={createBill}>{saving?"Saving…":"Create Bill"}</Btn>
+        </div>
+      </Modal>
+
+      {/* Bill Detail Modal */}
+      <Modal open={!!showDetail} onClose={()=>setShowDetail(null)} title={showDetail?.number||""} width={560}>
+        {showDetail && (<div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:18 }}>
+            {[["Supplier",showDetail.vendor_name||"—"],["Date",showDetail.date],["Due Date",showDetail.due_date],["Status",""]].map(([l,v],i)=>(
+              <div key={i}><div style={{ fontSize:10, color:C.textDim, textTransform:"uppercase", marginBottom:4, letterSpacing:"0.07em" }}>{l}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{l==="Status"?<Pill status={showDetail.status}/>:v}</div></div>
+            ))}
+          </div>
+          <div style={{ padding:16, background:C.surface, borderRadius:10, marginBottom:14 }}>
+            {[["Total",parseFloat(showDetail.total||0)],["Paid",parseFloat(showDetail.paid_amount||0)],["Balance",parseFloat(showDetail.total||0)-parseFloat(showDetail.paid_amount||0)]].map(([l,v])=>(
+              <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                <span style={{ fontSize:12, color:C.textMid }}>{l}</span>
+                <span style={{ fontSize:13, fontWeight:700, color:l==="Balance"?C.amber:C.text, fontFamily:font }}>AED {v.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          {error && <div style={{ marginBottom:10, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+          <div style={{ display:"flex", gap:10 }}>
+            {parseFloat(showDetail.paid_amount||0)<parseFloat(showDetail.total||0) && <Btn onClick={openPay}>Record Payment</Btn>}
+            {showDetail.status==="draft" && <Btn variant="ghost" onClick={()=>{approveBill(showDetail.id);setShowDetail(null);}}>Approve</Btn>}
+            <Btn variant="ghost" onClick={()=>setShowDetail(null)}>Close</Btn>
+          </div>
+        </div>)}
+      </Modal>
+
+      {/* Payment Modal */}
+      <Modal open={showPay} onClose={()=>{setShowPay(false);setError("");}} title="Record Payment" width={440}>
+        <Input label="Amount (AED) *" value={payForm.amount} onChange={v=>setPayForm(p=>({...p,amount:v}))} type="number" placeholder="0.00"/>
+        <Input label="Payment Date *" value={payForm.date} onChange={v=>setPayForm(p=>({...p,date:v}))} type="date"/>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Payment Method</label>
+          <select value={payForm.method} onChange={e=>setPayForm(p=>({...p,method:e.target.value}))}
+            style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", color:C.text, fontSize:12, outline:"none" }}>
+            {["bank_transfer","cash","cheque","card"].map(m=><option key={m} value={m}>{m.replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <Input label="Reference Number" value={payForm.reference} onChange={v=>setPayForm(p=>({...p,reference:v}))} placeholder="TXN-123456"/>
+        {error && <div style={{ marginTop:10, padding:"10px 14px", background:`${C.rose}12`, border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>⚠ {error}</div>}
+        <div style={{ display:"flex", gap:10, marginTop:18 }}>
+          <Btn variant="ghost" onClick={()=>{setShowPay(false);setError("");}}>Cancel</Btn>
+          <Btn onClick={recordPayment}>{saving?"Recording…":"Record Payment"}</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SIDEBAR NAV CONFIG
 ═══════════════════════════════════════════════════════════════ */
 const NAV_TOP = [
@@ -1619,8 +2180,11 @@ export default function App() {
     switch(page) {
       case "dashboard":         return <Dashboard token={token}/>;
       case "invoices":          return <Invoices  token={token}/>;
-      case "coa":               return <ChartOfAccounts/>;
-      case "gl":                return <GeneralLedger/>;
+      case "customers":         return <Customers token={token}/>;
+      case "suppliers":         return <Suppliers token={token}/>;
+      case "bills":             return <Bills     token={token}/>;
+      case "coa":               return <ChartOfAccounts token={token}/>;
+      case "gl":                return <GeneralLedger   token={token}/>;
       case "banking":           return <Banking/>;
       case "inventory":         return <Inventory/>;
       case "vat":               return <VAT/>;
