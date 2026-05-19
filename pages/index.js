@@ -1571,8 +1571,8 @@ export default function App() {
   const [search, setSearch]       = useState("");
 
   if (!ready) return (
-    <div style={{ height:"100vh", background:C.bg, display:"flex", alignItems:"center",
-      justifyContent:"center", fontFamily:font, color:C.textDim, fontSize:12 }}>
+    <div style={{ height:"100vh", background:"#F8FAFC", display:"flex", alignItems:"center",
+      justifyContent:"center", fontFamily:sansFont, color:"#64748B", fontSize:13 }}>
       Loading…
     </div>
   );
@@ -1615,49 +1615,50 @@ export default function App() {
       background:C.bg, fontFamily:sansFont, color:C.text, overflow:"hidden" }}>
 
       {/* ─── SIDEBAR ─── */}
-      <div style={{ width:SW, flexShrink:0, height:"100%", background:C.surface,
-        borderRight:`1px solid ${C.border}`, display:"flex", flexDirection:"column",
+      <div style={{ width:SW, flexShrink:0, height:"100%",
+        background:"#1E40AF",
+        borderRight:"none", display:"flex", flexDirection:"column",
         transition:"width 0.2s", overflow:"hidden" }}>
 
         {/* Logo */}
-        <div style={{ padding:collapsed?"16px 0":"16px", borderBottom:`1px solid ${C.border}`,
+        <div style={{ padding:collapsed?"18px 0":"16px 18px",
+          borderBottom:"1px solid rgba(255,255,255,0.1)",
           display:"flex", alignItems:"center", gap:10,
           justifyContent:collapsed?"center":"flex-start" }}>
           <div style={{ width:32, height:32, borderRadius:8, flexShrink:0,
-            background:`linear-gradient(135deg, ${C.teal}, ${C.sky})`,
+            background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.2)",
             display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:15, fontWeight:900, color:C.bg, fontFamily:font }}>S</div>
+            fontSize:15, fontWeight:900, color:"#fff", fontFamily:font }}>S</div>
           {!collapsed && (
             <div>
-              <div style={{ fontSize:12, fontWeight:800, color:C.text, letterSpacing:"-0.01em", fontFamily:font }}>SmartAccounting</div>
-              <div style={{ fontSize:9, color:C.teal, fontWeight:700, letterSpacing:"0.06em" }}>ERP · v2.0</div>
+              <div style={{ fontSize:12, fontWeight:800, color:"#fff", letterSpacing:"-0.01em" }}>SmartAccounting</div>
+              <div style={{ fontSize:9, color:"rgba(255,255,255,0.55)", fontWeight:600, letterSpacing:"0.06em" }}>ERP · v2.0</div>
             </div>
           )}
         </div>
 
         {/* Company switcher */}
         {!collapsed && (
-          <div style={{ padding:"12px", borderBottom:`1px solid ${C.border}`, position:"relative" }}>
-            <button onClick={()=>setShowCo(!showCo)} style={{
-              width:"100%", background:C.raised, border:`1px solid ${C.border}`,
-              borderRadius:9, padding:"8px 10px", cursor:"pointer",
-              display:"flex", alignItems:"center", gap:8, color:C.text }}>
-              <div style={{ width:22, height:22, borderRadius:5, background:C.teal,
+          <div style={{ padding:"12px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
+            <div style={{
+              width:"100%", background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.15)",
+              borderRadius:9, padding:"8px 10px",
+              display:"flex", alignItems:"center", gap:8, color:"#fff" }}>
+              <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.2)",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:9, fontWeight:900, color:C.bg, flexShrink:0 }}>
+                fontSize:9, fontWeight:900, color:"#fff", flexShrink:0 }}>
                 {companyName[0]}
               </div>
               <span style={{ fontSize:10, fontWeight:600, flex:1, textAlign:"left",
-                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:"rgba(255,255,255,0.9)" }}>
                 {companyName}
               </span>
-              <span style={{ fontSize:10, color:C.textDim }}>⌄</span>
-            </button>
+            </div>
           </div>
         )}
 
         {/* Nav links */}
-        <nav style={{ flex:1, overflowY:"auto", padding:"10px 6px" }}>
+        <nav style={{ flex:1, overflowY:"auto", padding:"10px 8px" }}>
           {NAV.map(item=>{
             const active = page===item.id;
             return (
@@ -1665,20 +1666,20 @@ export default function App() {
                 width:"100%", display:"flex", alignItems:"center",
                 gap:collapsed?0:9, justifyContent:collapsed?"center":"flex-start",
                 padding:collapsed?"10px 0":"9px 10px",
-                borderRadius:9, border:"none", cursor:"pointer", marginBottom:1,
-                background:active?`${C.teal}18`:"none",
-                color:active?C.teal:C.textMid, position:"relative",
+                borderRadius:9, border:"none", cursor:"pointer", marginBottom:2,
+                background:active?"rgba(255,255,255,0.15)":"none",
+                color:active?"#fff":"rgba(255,255,255,0.6)", position:"relative",
                 transition:"background 0.15s" }}
-                onMouseEnter={e=>!active&&(e.currentTarget.style.background=C.raised)}
+                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.08)")}
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
-                  width:3, borderRadius:"0 2px 2px 0", background:C.teal }}/>}
+                  width:3, borderRadius:"0 2px 2px 0", background:"#fff" }}/>}
                 <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
-                  <span style={{ fontSize:12, fontWeight:active?700:500, flex:1, textAlign:"left" }}>{item.label}</span>
+                  <span style={{ fontSize:12, fontWeight:active?700:400, flex:1, textAlign:"left" }}>{item.label}</span>
                   {item.badge && (
                     <span style={{ fontSize:9, fontWeight:700, minWidth:16, height:16,
-                      background:C.rose, color:"#fff", borderRadius:8,
+                      background:"rgba(239,68,68,0.9)", color:"#fff", borderRadius:8,
                       display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>
                       {item.badge}
                     </span>
@@ -1690,11 +1691,11 @@ export default function App() {
         </nav>
 
         {/* Collapse btn */}
-        <div style={{ padding:"10px 6px", borderTop:`1px solid ${C.border}` }}>
+        <div style={{ padding:"10px 8px", borderTop:"1px solid rgba(255,255,255,0.1)" }}>
           <button onClick={()=>setCollapsed(!collapsed)} style={{
             width:"100%", padding:"7px 0", borderRadius:9,
-            border:`1px solid ${C.border}`, background:C.raised,
-            color:C.textMid, cursor:"pointer", fontSize:13 }}>
+            border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.08)",
+            color:"rgba(255,255,255,0.6)", cursor:"pointer", fontSize:13 }}>
             {collapsed?"›":"‹"}
           </button>
         </div>
@@ -1704,68 +1705,69 @@ export default function App() {
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
         {/* Topbar */}
-        <div style={{ height:56, background:C.surface, borderBottom:`1px solid ${C.border}`,
+        <div style={{ height:56, background:"#FFFFFF", borderBottom:"1px solid #E2E8F0",
           display:"flex", alignItems:"center", padding:"0 22px", gap:14, flexShrink:0 }}>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:9, color:C.textDim, letterSpacing:"0.06em", textTransform:"uppercase" }}>
+            <div style={{ fontSize:9, color:"#94A3B8", letterSpacing:"0.06em", textTransform:"uppercase" }}>
               {companyName}
             </div>
-            <div style={{ fontSize:14, fontWeight:800, color:C.text, fontFamily:font }}>
+            <div style={{ fontSize:14, fontWeight:800, color:"#1E293B", fontFamily:font }}>
               {pageLabels[page] || "Dashboard"}
             </div>
           </div>
 
           {/* Search */}
-          <div style={{ display:"flex", alignItems:"center", gap:8, background:C.raised,
-            border:`1px solid ${C.border}`, borderRadius:9, padding:"7px 13px", width:220 }}>
-            <span style={{ color:C.textDim, fontSize:12 }}>⌕</span>
+          <div style={{ display:"flex", alignItems:"center", gap:8, background:"#F8FAFC",
+            border:"1px solid #E2E8F0", borderRadius:9, padding:"7px 13px", width:220 }}>
+            <span style={{ color:"#94A3B8", fontSize:12 }}>⌕</span>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
               style={{ background:"none", border:"none", outline:"none",
-                color:C.text, fontSize:11, width:"100%" }}/>
-            <span style={{ fontSize:9, color:C.textDim, background:C.surface,
+                color:"#1E293B", fontSize:11, width:"100%" }}/>
+            <span style={{ fontSize:9, color:"#94A3B8", background:"#E2E8F0",
               padding:"1px 5px", borderRadius:4 }}>⌘K</span>
           </div>
 
           {/* New Entry */}
           <button style={{ padding:"8px 16px", borderRadius:9, border:"none",
-            background:C.teal, color:C.bg, fontWeight:800, fontSize:11, cursor:"pointer",
-            display:"flex", alignItems:"center", gap:5 }}>
+            background:"#2563EB", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer",
+            display:"flex", alignItems:"center", gap:5,
+            boxShadow:"0 2px 8px rgba(37,99,235,0.3)" }}>
             + New Entry
           </button>
 
           {/* Notification bell */}
           <div style={{ position:"relative" }}>
             <button onClick={()=>setShowNotif(!showNotif)} style={{
-              width:36, height:36, borderRadius:9, border:`1px solid ${C.border}`,
-              background:C.raised, cursor:"pointer", fontSize:15,
+              width:36, height:36, borderRadius:9, border:"1px solid #E2E8F0",
+              background:"#F8FAFC", cursor:"pointer", fontSize:15,
               display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
               🔔
               <div style={{ position:"absolute", top:7, right:8, width:6, height:6,
-                borderRadius:"50%", background:C.rose, border:`1px solid ${C.surface}` }}/>
+                borderRadius:"50%", background:"#EF4444", border:"1px solid #fff" }}/>
             </button>
             {showNotif && (
               <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, width:290,
-                background:C.surfaceB, border:`1px solid ${C.border}`, borderRadius:12,
-                overflow:"hidden", zIndex:300, boxShadow:"0 20px 50px rgba(0,0,0,0.5)" }}>
-                <div style={{ padding:"12px 16px", borderBottom:`1px solid ${C.border}`,
+                background:"#fff", border:"1px solid #E2E8F0", borderRadius:12,
+                overflow:"hidden", zIndex:300, boxShadow:"0 8px 30px rgba(0,0,0,0.12)" }}>
+                <div style={{ padding:"12px 16px", borderBottom:"1px solid #E2E8F0",
                   display:"flex", justifyContent:"space-between" }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:C.text }}>Notifications</span>
-                  <span style={{ fontSize:10, color:C.teal, cursor:"pointer" }}>Mark all read</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#1E293B" }}>Notifications</span>
+                  <span style={{ fontSize:10, color:"#2563EB", cursor:"pointer" }}>Mark all read</span>
                 </div>
                 {[
-                  { icon:"⚠", c:C.rose,    msg:"INV-0840 Emirates NBD is overdue", t:"2h ago" },
-                  { icon:"✓", c:C.emerald, msg:"BILL-0391 approved by Finance Manager", t:"4h ago" },
-                  { icon:"⊛", c:C.amber,   msg:"VAT Q4 return due in 10 days", t:"1d ago" },
-                  { icon:"⊠", c:C.sky,     msg:"HP EliteBook 840 stock below reorder", t:"2d ago" },
+                  { icon:"⚠", c:"#EF4444", msg:"INV-0840 Emirates NBD is overdue", t:"2h ago" },
+                  { icon:"✓", c:"#10B981", msg:"BILL-0391 approved by Finance Manager", t:"4h ago" },
+                  { icon:"⊛", c:"#F59E0B", msg:"VAT Q4 return due in 10 days", t:"1d ago" },
+                  { icon:"⊠", c:"#2563EB", msg:"HP EliteBook 840 stock below reorder", t:"2d ago" },
                 ].map((n,i)=>(
                   <div key={i} style={{ display:"flex", gap:10, padding:"11px 16px",
-                    alignItems:"flex-start", borderBottom:`1px solid ${C.border}`, cursor:"pointer" }}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.raised}
+                    alignItems:"flex-start", borderBottom:"1px solid #F1F5F9", cursor:"pointer" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span style={{ fontSize:13, color:n.c, marginTop:1 }}>{n.icon}</span>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:11, color:C.text, lineHeight:1.4 }}>{n.msg}</div>
-                      <div style={{ fontSize:9, color:C.textDim, marginTop:3 }}>{n.t}</div>
+                      <div style={{ fontSize:11, color:"#1E293B", lineHeight:1.4 }}>{n.msg}</div>
+                      <div style={{ fontSize:9, color:"#94A3B8", marginTop:3 }}>{n.t}</div>
                     </div>
                   </div>
                 ))}
@@ -1776,18 +1778,19 @@ export default function App() {
           {/* User avatar + logout */}
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:C.text }}>{user?.name || "User"}</div>
-              <div style={{ fontSize:9, color:C.textDim }}>{user?.role || "admin"}</div>
+              <div style={{ fontSize:11, fontWeight:700, color:"#1E293B" }}>{user?.name || "User"}</div>
+              <div style={{ fontSize:9, color:"#94A3B8", textTransform:"capitalize" }}>{user?.role || "admin"}</div>
             </div>
             <div style={{ width:34, height:34, borderRadius:9,
-              background:`linear-gradient(135deg, ${C.sky}, ${C.violet})`,
+              background:"linear-gradient(135deg, #2563EB, #1E40AF)",
               display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:11, fontWeight:900, color:"#fff", cursor:"pointer", fontFamily:font }}>
+              fontSize:11, fontWeight:800, color:"#fff", cursor:"pointer",
+              boxShadow:"0 2px 8px rgba(37,99,235,0.3)" }}>
               {userInitials}
             </div>
             <button onClick={logout} title="Sign out" style={{
-              width:34, height:34, borderRadius:9, border:`1px solid ${C.border}`,
-              background:C.raised, cursor:"pointer", fontSize:14, color:C.textMid,
+              width:34, height:34, borderRadius:9, border:"1px solid #E2E8F0",
+              background:"#F8FAFC", cursor:"pointer", fontSize:14, color:"#64748B",
               display:"flex", alignItems:"center", justifyContent:"center",
             }}>⎋</button>
           </div>

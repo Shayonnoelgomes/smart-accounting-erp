@@ -1,47 +1,71 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 
-const C = {
-  bg:       "#07111F",
-  surface:  "#0C1A2E",
-  surfaceB: "#101F35",
-  raised:   "#152234",
-  border:   "rgba(255,255,255,0.065)",
-  borderHi: "rgba(0,210,180,0.35)",
-  teal:     "#00D2B4",
-  tealDim:  "#007A6A",
-  sky:      "#38BDF8",
-  emerald:  "#10B981",
-  rose:     "#F43F5E",
-  text:     "#D9E8F5",
-  textMid:  "#7A96B4",
-  textDim:  "#3D5570",
+const B = {
+  bg:          "#F8FAFC",
+  white:       "#FFFFFF",
+  blue:        "#2563EB",
+  blueDk:      "#1E40AF",
+  blueLt:      "#EFF6FF",
+  text:        "#1E293B",
+  textMid:     "#64748B",
+  textLt:      "#94A3B8",
+  border:      "#E2E8F0",
+  success:     "#10B981",
+  successBg:   "#ECFDF5",
+  successBorder:"#6EE7B7",
+  errorBg:     "#FEF2F2",
+  errorBorder: "#FCA5A5",
+  errorText:   "#DC2626",
 };
-const font     = "'IBM Plex Mono','Fira Code','Courier New',monospace";
-const sansFont = "'DM Sans','Segoe UI',system-ui,sans-serif";
-const API      = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const sans = "'DM Sans','Segoe UI',system-ui,sans-serif";
+const mono = "'IBM Plex Mono','Fira Code',monospace";
+const API  = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-function Field({ label, type="text", value, onChange, placeholder, autoComplete }) {
+function Field({ label, type="text", value, onChange, placeholder, autoComplete, hint }) {
   const [focused, setFocused] = useState(false);
   return (
     <div>
-      <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid,
-        letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:7, fontFamily:font }}>
+      <label style={{ display:"block", fontSize:13, fontWeight:600, color:B.text, marginBottom:7 }}>
         {label}
       </label>
       <input
         type={type} value={value} onChange={e=>onChange(e.target.value)}
         placeholder={placeholder} autoComplete={autoComplete}
         style={{
-          width:"100%", background:C.raised,
-          border:`1px solid ${focused ? C.teal : C.border}`,
-          borderRadius:10, padding:"11px 14px", color:C.text, fontSize:13,
-          outline:"none", boxSizing:"border-box", fontFamily:sansFont,
-          transition:"border-color 0.15s",
+          width:"100%", background:B.white,
+          border:`1.5px solid ${focused ? B.blue : B.border}`,
+          boxShadow: focused ? `0 0 0 3px ${B.blue}1A` : "none",
+          borderRadius:10, padding:"11px 14px", color:B.text, fontSize:14,
+          outline:"none", boxSizing:"border-box", fontFamily:sans,
+          transition:"border-color 0.15s, box-shadow 0.15s",
         }}
         onFocus={()=>setFocused(true)}
         onBlur={()=>setFocused(false)}
       />
+      {hint && <p style={{ margin:"5px 0 0", fontSize:11, color:B.textMid }}>{hint}</p>}
+    </div>
+  );
+}
+
+function StrengthBar({ password }) {
+  const len = password.length;
+  const score = len === 0 ? 0 : len < 6 ? 1 : len < 8 ? 2 : len < 12 ? 3 : 4;
+  const labels = ["", "Weak", "Fair", "Good", "Strong"];
+  const colors = ["", "#EF4444", "#F59E0B", "#3B82F6", "#10B981"];
+  if (!password) return null;
+  return (
+    <div style={{ marginTop:8 }}>
+      <div style={{ display:"flex", gap:4, marginBottom:5 }}>
+        {[1,2,3,4].map(i=>(
+          <div key={i} style={{
+            height:3, flex:1, borderRadius:2,
+            background: i<=score ? colors[score] : B.border,
+            transition:"background 0.25s",
+          }}/>
+        ))}
+      </div>
+      <span style={{ fontSize:11, color:colors[score], fontWeight:600 }}>{labels[score]}</span>
     </div>
   );
 }
@@ -49,13 +73,13 @@ function Field({ label, type="text", value, onChange, placeholder, autoComplete 
 export default function Register() {
   const router = useRouter();
   const [form, setForm] = useState({
-    company_name: "", name: "", email: "", password: "", confirm: "",
+    company_name:"", name:"", email:"", password:"", confirm:"",
   });
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const f = key => val => setForm(p => ({ ...p, [key]: val }));
+  const f = key => val => setForm(p=>({...p,[key]:val}));
 
   const handleRegister = async (e) => {
     e?.preventDefault();
@@ -63,24 +87,19 @@ export default function Register() {
     if (!company_name || !name || !email || !password) {
       setError("All fields are required."); return;
     }
-    if (password !== confirm) {
-      setError("Passwords do not match."); return;
-    }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters."); return;
-    }
-
+    if (password !== confirm) { setError("Passwords do not match."); return; }
+    if (password.length < 8)  { setError("Password must be at least 8 characters."); return; }
     setError(""); setLoading(true);
     try {
       const res  = await fetch(`${API}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ company_name, name, email, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Registration failed."); setLoading(false); return; }
+      if (!res.ok) { setError(data.error||"Registration failed."); setLoading(false); return; }
       setSuccess(true);
-      setTimeout(() => router.push("/login"), 2000);
+      setTimeout(()=>router.push("/login"), 2200);
     } catch {
       setError("Cannot reach server. Check your connection.");
       setLoading(false);
@@ -88,135 +107,170 @@ export default function Register() {
   };
 
   return (
-    <div style={{
-      minHeight:"100vh", background:C.bg, fontFamily:sansFont,
-      display:"flex", alignItems:"center", justifyContent:"center",
-      padding:"32px 24px", position:"relative", overflow:"hidden",
-    }}>
-      {/* Background glow */}
-      <div style={{ position:"absolute", top:"-20%", right:"-10%", width:600, height:600,
-        borderRadius:"50%", background:`radial-gradient(circle, ${C.teal}14 0%, transparent 70%)`,
-        pointerEvents:"none" }}/>
-      <div style={{ position:"absolute", bottom:"-15%", left:"-8%", width:500, height:500,
-        borderRadius:"50%", background:`radial-gradient(circle, ${C.sky}0C 0%, transparent 70%)`,
-        pointerEvents:"none" }}/>
+    <div style={{ display:"flex", minHeight:"100vh", fontFamily:sans }}>
 
-      <div style={{ width:"100%", maxWidth:440, position:"relative", zIndex:1 }}>
+      {/* ── LEFT PANEL ── */}
+      <div style={{
+        display:"flex", flexDirection:"column", justifyContent:"space-between",
+        width:"40%", minHeight:"100vh", padding:"48px 44px",
+        background:`linear-gradient(145deg, ${B.blueDk} 0%, ${B.blue} 100%)`,
+        position:"relative", overflow:"hidden",
+      }}>
+        <div style={{ position:"absolute", top:-60, right:-60, width:280, height:280,
+          borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
+        <div style={{ position:"absolute", bottom:-80, left:-40, width:320, height:320,
+          borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }}/>
+
         {/* Logo */}
-        <div style={{ textAlign:"center", marginBottom:28 }}>
-          <div style={{
-            width:52, height:52, borderRadius:14, margin:"0 auto 14px",
-            background:`linear-gradient(135deg, ${C.teal}, ${C.sky})`,
-            display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:22, fontWeight:900, color:C.bg, fontFamily:font,
-            boxShadow:`0 0 40px ${C.teal}40`,
-          }}>S</div>
-          <div style={{ fontSize:20, fontWeight:800, color:C.text, fontFamily:font, letterSpacing:"-0.02em" }}>
-            SmartAccounting
-          </div>
-          <div style={{ fontSize:11, color:C.teal, fontWeight:700, letterSpacing:"0.1em", marginTop:2 }}>
-            ERP · v2.0
+        <div style={{ position:"relative", zIndex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{
+              width:40, height:40, borderRadius:10, background:"rgba(255,255,255,0.15)",
+              border:"1px solid rgba(255,255,255,0.25)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:18, fontWeight:900, color:"#fff", fontFamily:mono,
+            }}>S</div>
+            <div>
+              <div style={{ fontSize:16, fontWeight:800, color:"#fff", letterSpacing:"-0.01em" }}>SmartAccounting</div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.6)", letterSpacing:"0.08em" }}>ERP · v2.0</div>
+            </div>
           </div>
         </div>
 
-        {/* Card */}
-        <div style={{
-          background:C.surface, border:`1px solid ${C.border}`,
-          borderRadius:18, padding:"30px 32px 26px",
-          boxShadow:"0 40px 100px rgba(0,0,0,0.5)",
-        }}>
-          <div style={{ marginBottom:22 }}>
-            <h1 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>
-              Create account
+        {/* Middle */}
+        <div style={{ position:"relative", zIndex:1 }}>
+          <h2 style={{ margin:"0 0 12px", fontSize:28, fontWeight:800, color:"#fff",
+            lineHeight:1.25, letterSpacing:"-0.02em" }}>
+            Start your free<br/>account today.
+          </h2>
+          <p style={{ margin:"0 0 36px", fontSize:14, color:"rgba(255,255,255,0.72)", lineHeight:1.65 }}>
+            Join thousands of businesses managing their finances smarter with SmartAccounting ERP.
+          </p>
+          {[
+            "Free 30-day trial, no credit card required",
+            "Set up in under 5 minutes",
+            "Invite your team and accountant",
+            "Export reports anytime",
+          ].map(item=>(
+            <div key={item} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:13 }}>
+              <div style={{ width:20, height:20, borderRadius:"50%", background:"rgba(255,255,255,0.15)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:10, color:"#fff", flexShrink:0 }}>✓</div>
+              <span style={{ fontSize:13, color:"rgba(255,255,255,0.85)" }}>{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ position:"relative", zIndex:1 }}>
+          <p style={{ margin:0, fontSize:12, color:"rgba(255,255,255,0.4)" }}>
+            © 2025 SmartAccounting ERP · Secure · SOC 2 Compliant
+          </p>
+        </div>
+      </div>
+
+      {/* ── RIGHT PANEL ── */}
+      <div style={{
+        flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+        background:B.bg, padding:"40px 32px", overflowY:"auto",
+      }}>
+        <div style={{ width:"100%", maxWidth:420 }}>
+
+          <div style={{ marginBottom:28 }}>
+            <h1 style={{ margin:"0 0 8px", fontSize:24, fontWeight:800, color:B.text, letterSpacing:"-0.02em" }}>
+              Create your account
             </h1>
-            <p style={{ margin:"6px 0 0", fontSize:12, color:C.textMid }}>
-              Set up your company on SmartAccounting ERP
+            <p style={{ margin:0, fontSize:14, color:B.textMid }}>
+              Set up your company workspace in minutes
             </p>
           </div>
 
-          {success ? (
-            <div style={{
-              background:`${C.emerald}12`, border:`1px solid ${C.emerald}30`,
-              borderRadius:12, padding:"20px", textAlign:"center",
-            }}>
-              <div style={{ fontSize:24, marginBottom:8 }}>✓</div>
-              <div style={{ fontSize:14, fontWeight:700, color:C.emerald, fontFamily:font }}>
-                Account created!
-              </div>
-              <div style={{ fontSize:12, color:C.textMid, marginTop:6 }}>
-                Redirecting to login…
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleRegister} style={{ display:"flex", flexDirection:"column", gap:14 }}>
-              <Field label="Company Name" value={form.company_name} onChange={f("company_name")}
-                placeholder="Horizon Tech FZE" autoComplete="organization"/>
-
-              <Field label="Your Full Name" value={form.name} onChange={f("name")}
-                placeholder="John Smith" autoComplete="name"/>
-
-              <Field label="Email Address" type="email" value={form.email} onChange={f("email")}
-                placeholder="john@company.com" autoComplete="email"/>
-
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                <Field label="Password" type="password" value={form.password} onChange={f("password")}
-                  placeholder="Min 8 chars" autoComplete="new-password"/>
-                <Field label="Confirm Password" type="password" value={form.confirm} onChange={f("confirm")}
-                  placeholder="Repeat password" autoComplete="new-password"/>
-              </div>
-
-              {/* Password strength hint */}
-              {form.password && (
-                <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-                  {[4,6,8,10].map(n=>(
-                    <div key={n} style={{
-                      height:3, flex:1, borderRadius:2,
-                      background: form.password.length>=n
-                        ? n<=5?C.rose : n<=7?C.sky : C.emerald
-                        : C.raised,
-                      transition:"background 0.2s",
-                    }}/>
-                  ))}
-                  <span style={{ fontSize:9, color:C.textDim, whiteSpace:"nowrap" }}>
-                    {form.password.length<6?"Weak":form.password.length<8?"Fair":"Strong"}
-                  </span>
-                </div>
-              )}
-
-              {error && (
-                <div style={{
-                  background:`${C.rose}12`, border:`1px solid ${C.rose}30`,
-                  borderRadius:9, padding:"10px 14px",
-                  fontSize:12, color:C.rose, display:"flex", alignItems:"center", gap:8,
-                }}>
-                  <span>⚠</span> {error}
-                </div>
-              )}
-
-              <button type="submit" disabled={loading} style={{
-                width:"100%", padding:"13px", borderRadius:10, border:"none",
-                background: loading ? C.tealDim : C.teal,
-                color:C.bg, fontWeight:800, fontSize:13,
-                cursor:loading?"not-allowed":"pointer",
-                fontFamily:sansFont, marginTop:4, letterSpacing:"0.02em",
-                boxShadow: loading?"none":`0 0 24px ${C.teal}40`,
-                transition:"all 0.15s",
-              }}>
-                {loading ? "Creating account…" : "Create Account →"}
-              </button>
-            </form>
-          )}
-        </div>
-
-        {/* Login link */}
-        <p style={{ textAlign:"center", marginTop:20, fontSize:12, color:C.textMid }}>
-          Already have an account?{" "}
-          <span onClick={()=>router.push("/login")} style={{
-            color:C.teal, cursor:"pointer", fontWeight:700,
+          <div style={{
+            background:B.white, borderRadius:16, padding:"30px",
+            border:`1px solid ${B.border}`,
+            boxShadow:"0 4px 24px rgba(0,0,0,0.06)",
           }}>
-            Sign in
-          </span>
-        </p>
+            {success ? (
+              <div style={{ textAlign:"center", padding:"20px 0" }}>
+                <div style={{
+                  width:60, height:60, borderRadius:"50%",
+                  background:B.successBg, border:`2px solid ${B.successBorder}`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  margin:"0 auto 16px", fontSize:24, color:B.success,
+                }}>✓</div>
+                <div style={{ fontSize:17, fontWeight:700, color:B.text, marginBottom:8 }}>
+                  Account created!
+                </div>
+                <div style={{ fontSize:13, color:B.textMid }}>
+                  Redirecting you to sign in…
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleRegister} style={{ display:"flex", flexDirection:"column", gap:18 }}>
+                <Field label="Company Name" value={form.company_name} onChange={f("company_name")}
+                  placeholder="Acme Corp Ltd" autoComplete="organization"/>
+
+                <Field label="Your Full Name" value={form.name} onChange={f("name")}
+                  placeholder="John Smith" autoComplete="name"/>
+
+                <Field label="Work Email" type="email" value={form.email} onChange={f("email")}
+                  placeholder="john@acmecorp.com" autoComplete="email"/>
+
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+                  <div>
+                    <Field label="Password" type="password" value={form.password} onChange={f("password")}
+                      placeholder="Min. 8 characters" autoComplete="new-password"/>
+                    <StrengthBar password={form.password}/>
+                  </div>
+                  <Field label="Confirm Password" type="password" value={form.confirm} onChange={f("confirm")}
+                    placeholder="Repeat password" autoComplete="new-password"/>
+                </div>
+
+                {error && (
+                  <div style={{
+                    background:B.errorBg, border:`1px solid ${B.errorBorder}`,
+                    borderRadius:9, padding:"11px 14px",
+                    fontSize:13, color:B.errorText,
+                    display:"flex", alignItems:"center", gap:8,
+                  }}>
+                    <span>⚠</span> {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit" disabled={loading}
+                  style={{
+                    width:"100%", padding:"13px", borderRadius:10, border:"none",
+                    background: loading ? `${B.blue}99` : B.blue,
+                    color:"#fff", fontWeight:700, fontSize:14,
+                    cursor:loading?"not-allowed":"pointer", fontFamily:sans,
+                    boxShadow: loading ? "none" : `0 4px 14px ${B.blue}40`,
+                    transition:"all 0.15s",
+                  }}
+                  onMouseEnter={e=>{ if(!loading) e.target.style.background=B.blueDk; }}
+                  onMouseLeave={e=>{ if(!loading) e.target.style.background=B.blue; }}
+                >
+                  {loading ? "Creating account…" : "Create account →"}
+                </button>
+
+                <p style={{ margin:0, fontSize:12, color:B.textMid, textAlign:"center" }}>
+                  By creating an account you agree to our{" "}
+                  <span style={{ color:B.blue, cursor:"pointer" }}>Terms of Service</span>
+                  {" "}and{" "}
+                  <span style={{ color:B.blue, cursor:"pointer" }}>Privacy Policy</span>.
+                </p>
+              </form>
+            )}
+          </div>
+
+          <p style={{ textAlign:"center", marginTop:22, fontSize:13, color:B.textMid }}>
+            Already have an account?{" "}
+            <span onClick={()=>router.push("/login")}
+              style={{ color:B.blue, cursor:"pointer", fontWeight:600,
+                textDecoration:"underline", textUnderlineOffset:3 }}>
+              Sign in
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   );
