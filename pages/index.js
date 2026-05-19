@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/router";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -291,16 +294,65 @@ const Select = ({ label, value, onChange, options }) => (
 /* ═══════════════════════════════════════════════════════════════
    PAGE: DASHBOARD
 ═══════════════════════════════════════════════════════════════ */
-function Dashboard() {
+function Dashboard({ token }) {
+  const [summary,  setSummary]  = useState(null);
+  const [cashflow, setCashflow] = useState([]);
+  const [alerts,   setAlerts]   = useState(null);
+  const [loading,  setLoading]  = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    const h = { Authorization: `Bearer ${token}` };
+    Promise.all([
+      fetch(`${API_URL}/api/dashboard/summary`,  { headers: h }).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/cashflow`, { headers: h }).then(r => r.json()),
+      fetch(`${API_URL}/api/dashboard/alerts`,   { headers: h }).then(r => r.json()),
+    ]).then(([sum, cf, al]) => {
+      setSummary(sum);
+      setCashflow(Array.isArray(cf) ? cf : []);
+      setAlerts(al);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [token]);
+
+  const s = summary || {};
   const kpis = [
-    { label:"Total Revenue",   value:1843200, trend:12.4, color:C.teal,    icon:"▲" },
-    { label:"Total Expenses",  value:1092800, trend:-3.1, color:C.rose,    icon:"▼" },
-    { label:"Net Profit",      value:750400,  trend:18.7, color:C.emerald, icon:"▲" },
-    { label:"Cash Balance",    value:2341500, trend:5.2,  color:C.sky,     icon:"▲" },
-    { label:"Receivables",     value:486200,  trend:-8.3, color:C.violet,  icon:"▼" },
-    { label:"Payables",        value:213800,  trend:2.1,  color:C.amber,   icon:"▲" },
-    { label:"VAT Payable",     value:84320,   trend:0,    color:C.teal,    icon:"─" },
-    { label:"Inventory Value", value:692400,  trend:4.6,  color:C.sky,     icon:"▲" },
+    { label:"Total Revenue",   value: s.revenue     || 0, trend:0, color:C.teal,    icon:"▲" },
+    { label:"Total Expenses",  value: s.expenses    || 0, trend:0, color:C.rose,    icon:"▼" },
+    { label:"Net Profit",      value: s.profit      || 0, trend:0, color:C.emerald, icon:"▲" },
+    { label:"Cash Balance",    value: s.cashBalance || 0, trend:0, color:C.sky,     icon:"▲" },
+    { label:"Receivables",     value: s.arBalance   || 0, trend:0, color:C.violet,  icon:"▼" },
+    { label:"Payables",        value: s.apBalance   || 0, trend:0, color:C.amber,   icon:"▲" },
+    { label:"VAT Payable",     value:84320, trend:0, color:C.teal,  icon:"─" },
+    { label:"Inventory Value", value:692400, trend:0, color:C.sky,   icon:"▲" },
+  ];
+
+  const cfChartData = cashflow.length > 0
+    ? cashflow.map((row, i) => ({ w:`W${i+1}`, in: parseFloat(row.inflow)||0, out: parseFloat(row.outflow)||0 }))
+    : cashFlowData;
+
+  const alertItems = alerts ? [
+    alerts.overdueInvoices?.length && {
+      c:C.rose, i:"⚠", t:"Overdue Invoices",
+      d:`${alerts.overdueInvoices.length} invoice${alerts.overdueInvoices.length>1?"s":""} past due`,
+    },
+    alerts.pendingBills?.length && {
+      c:C.amber, i:"⏳", t:"Bills Due",
+      d:`${alerts.pendingBills.length} bill${alerts.pendingBills.length>1?"s":""} awaiting payment`,
+    },
+    alerts.vatDue?.length && {
+      c:C.violet, i:"⊛", t:"VAT Return Due",
+      d:`${alerts.vatDue.length} draft return${alerts.vatDue.length>1?"s":""}`,
+    },
+    alerts.lowInventory?.length && {
+      c:C.sky, i:"⊠", t:"Low Stock Alert",
+      d:`${alerts.lowInventory.length} item${alerts.lowInventory.length>1?"s":""} below reorder level`,
+    },
+  ].filter(Boolean) : [
+    { c:C.rose,    i:"⚠", t:"Overdue Invoices",    d:"No data yet" },
+    { c:C.amber,   i:"⏳", t:"Pending Bills",        d:"No data yet" },
+    { c:C.sky,     i:"⊟", t:"Bank Reconciliation",  d:"Set up bank accounts" },
+    { c:C.violet,  i:"⊛", t:"VAT Return",           d:"No returns due" },
   ];
 
   return (
@@ -386,9 +438,9 @@ function Dashboard() {
       {/* Cash flow + alerts */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
         <Card>
-          <SHead>Cash Flow (6 Weeks)</SHead>
+          <SHead>Cash Flow (Weekly)</SHead>
           <ResponsiveContainer width="100%" height={190}>
-            <BarChart data={cashFlowData} barGap={3}>
+            <BarChart data={cfChartData} barGap={3}>
               <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
               <XAxis dataKey="w" tick={{fill:C.textDim,fontSize:10}} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v=>`${v/1000}K`} tick={{fill:C.textDim,fontSize:9}} axisLine={false} tickLine={false} width={34}/>
@@ -402,13 +454,7 @@ function Dashboard() {
         <Card>
           <SHead>Alerts & Pending Tasks</SHead>
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            {[
-              { c:C.rose,    i:"⚠", t:"Overdue Invoices",      d:"AED 92,000 · 3 invoices" },
-              { c:C.amber,   i:"⏳", t:"Pending Approvals",     d:"5 bills awaiting approval" },
-              { c:C.sky,     i:"⊟", t:"Bank Reconciliation",   d:"Nov 2024 not reconciled" },
-              { c:C.violet,  i:"⊛", t:"VAT Return Due",        d:"Q4 2024 · Due Jan 28, 2025" },
-              { c:C.emerald, i:"⊠", t:"Low Stock Alert",       d:"4 items below reorder level" },
-            ].map((a,i)=>(
+            {alertItems.map((a,i)=>(
               <div key={i} style={{ display:"flex", alignItems:"center", gap:12,
                 padding:"10px 14px", borderRadius:10,
                 background:`${a.c}0C`, border:`1px solid ${a.c}25`, cursor:"pointer" }}>
@@ -430,19 +476,76 @@ function Dashboard() {
 /* ═══════════════════════════════════════════════════════════════
    PAGE: INVOICES
 ═══════════════════════════════════════════════════════════════ */
-function Invoices() {
-  const [showNew, setShowNew] = useState(false);
+function Invoices({ token }) {
+  const [invoices,   setInvoices]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [showNew,    setShowNew]    = useState(false);
   const [showDetail, setShowDetail] = useState(null);
-  const [filter, setFilter] = useState("All");
-  const [form, setForm] = useState({ customer:"", date:"", due:"", items:[{ desc:"", qty:1, rate:0 }] });
-  const f = v => (n) => setForm(p=>({...p,[v]:n}));
+  const [filter,     setFilter]     = useState("All");
+  const [saving,     setSaving]     = useState(false);
+  const [apiError,   setApiError]   = useState("");
+  const [form, setForm] = useState({
+    customer_id:"", number:"", date:"", due_date:"", currency:"AED",
+    notes:"", items:[{ description:"", quantity:1, unit_price:0, tax_rate:5 }],
+  });
+  const fv = v => n => setForm(p=>({...p,[v]:n}));
+  const statuses = ["All","draft","sent","paid","partial","overdue","void"];
 
-  const filtered = filter==="All" ? invoicesData : invoicesData.filter(i=>i.status===filter);
-  const statuses = ["All","Draft","Sent","Paid","Partial","Overdue"];
+  const fetchInvoices = () => {
+    if (!token) return;
+    setLoading(true);
+    fetch(`${API_URL}/api/invoices`, { headers:{ Authorization:`Bearer ${token}` } })
+      .then(r=>r.json())
+      .then(d=>{ setInvoices(Array.isArray(d.data)?d.data:[]); setLoading(false); })
+      .catch(()=>setLoading(false));
+  };
 
-  const addLine = () => setForm(p=>({...p,items:[...p.items,{desc:"",qty:1,rate:0}]}));
-  const totalAmt = form.items.reduce((a,it)=>a+it.qty*it.rate,0);
-  const vatAmt = totalAmt*0.05;
+  useEffect(()=>{ fetchInvoices(); }, [token]);
+
+  const filtered = filter==="All" ? invoices : invoices.filter(i=>i.status===filter);
+
+  const addLine = () => setForm(p=>({...p,items:[...p.items,{description:"",quantity:1,unit_price:0,tax_rate:5}]}));
+  const totalAmt = form.items.reduce((a,it)=>a+(it.quantity*it.unit_price),0);
+  const vatAmt   = form.items.reduce((a,it)=>a+(it.quantity*it.unit_price*(it.tax_rate/100)),0);
+
+  const createInvoice = async () => {
+    if (!form.customer_id||!form.number||!form.date||!form.due_date) {
+      setApiError("Customer ID, number, date and due date are required."); return;
+    }
+    setSaving(true); setApiError("");
+    try {
+      const res  = await fetch(`${API_URL}/api/invoices`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+        body: JSON.stringify({
+          customer_id: form.customer_id,
+          number:      form.number,
+          date:        form.date,
+          due_date:    form.due_date,
+          currency:    form.currency,
+          notes:       form.notes,
+          lines:       form.items,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setApiError(data.error||"Failed to create invoice."); setSaving(false); return; }
+      setShowNew(false);
+      setForm({ customer_id:"",number:"",date:"",due_date:"",currency:"AED",notes:"",
+        items:[{description:"",quantity:1,unit_price:0,tax_rate:5}] });
+      fetchInvoices();
+    } catch { setApiError("Network error."); }
+    setSaving(false);
+  };
+
+  const recordPayment = async (invId, amount) => {
+    await fetch(`${API_URL}/api/invoices/${invId}/payment`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+      body: JSON.stringify({ amount, date: new Date().toISOString().slice(0,10), method:"bank_transfer" }),
+    });
+    fetchInvoices();
+    setShowDetail(null);
+  };
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
@@ -451,7 +554,7 @@ function Invoices() {
         <div>
           <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:C.text, fontFamily:font }}>Sales Invoices</h2>
           <p style={{ margin:"4px 0 0", fontSize:12, color:C.textMid }}>
-            {invoicesData.length} invoices · AED {invoicesData.reduce((a,i)=>a+i.amount,0).toLocaleString()} total
+            {invoices.length} invoices · AED {invoices.reduce((a,i)=>a+parseFloat(i.total||0),0).toLocaleString()} total
           </p>
         </div>
         <div style={{ display:"flex", gap:10 }}>
@@ -463,10 +566,10 @@ function Invoices() {
       {/* Summary Cards */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
         {[
-          { label:"Total Invoiced", value:428600, color:C.teal },
-          { label:"Collected",      value:142900, color:C.emerald },
-          { label:"Outstanding",    value:275100, color:C.amber },
-          { label:"Overdue",        value:92000,  color:C.rose },
+          { label:"Total Invoiced", value:invoices.reduce((a,i)=>a+parseFloat(i.total||0),0),       color:C.teal },
+          { label:"Collected",      value:invoices.reduce((a,i)=>a+parseFloat(i.paid_amount||0),0), color:C.emerald },
+          { label:"Outstanding",    value:invoices.reduce((a,i)=>a+parseFloat(i.total||0)-parseFloat(i.paid_amount||0),0), color:C.amber },
+          { label:"Overdue",        value:invoices.filter(i=>i.status==="overdue").reduce((a,i)=>a+parseFloat(i.total||0)-parseFloat(i.paid_amount||0),0), color:C.rose },
         ].map((s,i)=>(
           <Card key={i} style={{ padding:"14px 18px" }}>
             <div style={{ fontSize:10, color:C.textMid, letterSpacing:"0.07em", textTransform:"uppercase", fontFamily:font }}>{s.label}</div>
@@ -495,24 +598,26 @@ function Invoices() {
             <TH>Amount</TH><TH>Paid</TH><TH>Status</TH><TH>Actions</TH>
           </tr></thead>
           <tbody>
-            {filtered.map((inv,i)=>(
-              <tr key={i} style={{ cursor:"pointer" }}
+            {loading ? (
+              <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>Loading invoices…</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={8} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No invoices found. Create your first invoice.</td></tr>
+            ) : filtered.map((inv,i)=>(
+              <tr key={inv.id||i} style={{ cursor:"pointer" }}
                 onMouseEnter={e=>e.currentTarget.style.background=C.raised}
                 onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <TD><span style={{ color:C.teal, fontFamily:font, fontWeight:700 }}>{inv.id}</span></TD>
-                <TD>{inv.customer}</TD>
+                <TD><span style={{ color:C.teal, fontFamily:font, fontWeight:700 }}>{inv.number}</span></TD>
+                <TD>{inv.customer_name||"—"}</TD>
                 <TD style={{ color:C.textMid }}>{inv.date}</TD>
-                <TD style={{ color:inv.status==="Overdue"?C.rose:C.textMid }}>{inv.due}</TD>
-                <TD><span style={{ fontFamily:font, fontWeight:700 }}>AED {inv.amount.toLocaleString()}</span></TD>
-                <TD><span style={{ fontFamily:font, color:C.emerald }}>AED {inv.paid.toLocaleString()}</span></TD>
+                <TD style={{ color:inv.status==="overdue"?C.rose:C.textMid }}>{inv.due_date}</TD>
+                <TD><span style={{ fontFamily:font, fontWeight:700 }}>AED {parseFloat(inv.total||0).toLocaleString()}</span></TD>
+                <TD><span style={{ fontFamily:font, color:C.emerald }}>AED {parseFloat(inv.paid_amount||0).toLocaleString()}</span></TD>
                 <TD><Pill status={inv.status}/></TD>
                 <TD>
                   <div style={{ display:"flex", gap:6 }}>
                     <button onClick={()=>setShowDetail(inv)}
                       style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`,
                         borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
-                    <button style={{ fontSize:11, color:C.textMid, background:C.surface, border:`1px solid ${C.border}`,
-                        borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>PDF</button>
                   </div>
                 </TD>
               </tr>
@@ -522,12 +627,14 @@ function Invoices() {
       </Card>
 
       {/* New Invoice Modal */}
-      <Modal open={showNew} onClose={()=>setShowNew(false)} title="New Invoice" width={680}>
+      <Modal open={showNew} onClose={()=>{ setShowNew(false); setApiError(""); }} title="New Invoice" width={680}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-          <Input label="Customer" value={form.customer} onChange={f("customer")} placeholder="Select customer..." />
-          <Input label="Invoice Date" value={form.date} onChange={f("date")} type="date"/>
-          <Input label="Due Date" value={form.due} onChange={f("due")} type="date"/>
-          <Select label="Currency" value="AED" onChange={()=>{}} options={["AED","USD","EUR","GBP"]}/>
+          <Input label="Customer ID (UUID)" value={form.customer_id} onChange={fv("customer_id")} placeholder="Customer UUID"/>
+          <Input label="Invoice Number" value={form.number} onChange={fv("number")} placeholder="INV-001"/>
+          <Input label="Invoice Date" value={form.date} onChange={fv("date")} type="date"/>
+          <Input label="Due Date" value={form.due_date} onChange={fv("due_date")} type="date"/>
+          <Select label="Currency" value={form.currency} onChange={fv("currency")} options={["AED","USD","EUR","GBP"]}/>
+          <Input label="Notes" value={form.notes} onChange={fv("notes")} placeholder="Optional notes"/>
         </div>
         <div style={{ marginTop:4 }}>
           <div style={{ fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em",
@@ -540,24 +647,24 @@ function Invoices() {
               {form.items.map((item,i)=>(
                 <tr key={i}>
                   <TD>
-                    <input value={item.desc}
-                      onChange={e=>{const it=[...form.items];it[i].desc=e.target.value;setForm(p=>({...p,items:it}));}}
+                    <input value={item.description}
+                      onChange={e=>{const it=[...form.items];it[i].description=e.target.value;setForm(p=>({...p,items:it}));}}
                       style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
                         padding:"6px 8px", color:C.text, fontSize:12, width:"95%" }}/>
                   </TD>
                   <TD>
-                    <input type="number" value={item.qty}
-                      onChange={e=>{const it=[...form.items];it[i].qty=+e.target.value;setForm(p=>({...p,items:it}));}}
+                    <input type="number" value={item.quantity}
+                      onChange={e=>{const it=[...form.items];it[i].quantity=+e.target.value;setForm(p=>({...p,items:it}));}}
                       style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
                         padding:"6px 8px", color:C.text, fontSize:12, width:60 }}/>
                   </TD>
                   <TD>
-                    <input type="number" value={item.rate}
-                      onChange={e=>{const it=[...form.items];it[i].rate=+e.target.value;setForm(p=>({...p,items:it}));}}
+                    <input type="number" value={item.unit_price}
+                      onChange={e=>{const it=[...form.items];it[i].unit_price=+e.target.value;setForm(p=>({...p,items:it}));}}
                       style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:6,
                         padding:"6px 8px", color:C.text, fontSize:12, width:90 }}/>
                   </TD>
-                  <TD style={{ fontFamily:font, color:C.teal }}>AED {(item.qty*item.rate).toLocaleString()}</TD>
+                  <TD style={{ fontFamily:font, color:C.teal }}>AED {(item.quantity*item.unit_price).toLocaleString()}</TD>
                 </tr>
               ))}
             </tbody>
@@ -577,37 +684,58 @@ function Invoices() {
             ))}
           </div>
         </div>
+        {apiError && (
+          <div style={{ marginTop:12, padding:"10px 14px", background:`${C.rose}12`,
+            border:`1px solid ${C.rose}30`, borderRadius:9, fontSize:12, color:C.rose }}>
+            ⚠ {apiError}
+          </div>
+        )}
         <div style={{ display:"flex", gap:10, marginTop:18 }}>
-          <Btn variant="ghost" onClick={()=>setShowNew(false)}>Cancel</Btn>
-          <Btn variant="ghost">Save Draft</Btn>
-          <Btn>Save & Send</Btn>
+          <Btn variant="ghost" onClick={()=>{ setShowNew(false); setApiError(""); }}>Cancel</Btn>
+          <Btn onClick={createInvoice}>{saving?"Saving…":"Save Invoice"}</Btn>
         </div>
       </Modal>
 
       {/* Invoice Detail Modal */}
-      <Modal open={!!showDetail} onClose={()=>setShowDetail(null)} title={showDetail?.id} width={600}>
+      <Modal open={!!showDetail} onClose={()=>setShowDetail(null)} title={showDetail?.number} width={600}>
         {showDetail && (
           <div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:18 }}>
-              {[["Customer",showDetail.customer],["Invoice Date",showDetail.date],["Due Date",showDetail.due],["Status",""]].map(([l,v],i)=>(
+              {[
+                ["Customer",     showDetail.customer_name||"—"],
+                ["Invoice Date", showDetail.date],
+                ["Due Date",     showDetail.due_date],
+                ["Status",       ""],
+              ].map(([l,v],i)=>(
                 <div key={i}>
                   <div style={{ fontSize:10, color:C.textDim, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:4 }}>{l}</div>
-                  <div style={{ fontSize:13, color:C.text, fontWeight:600 }}>{l==="Status"?<Pill status={showDetail.status}/>:v}</div>
+                  <div style={{ fontSize:13, color:C.text, fontWeight:600 }}>
+                    {l==="Status" ? <Pill status={showDetail.status}/> : v}
+                  </div>
                 </div>
               ))}
             </div>
             <div style={{ padding:16, background:C.surface, borderRadius:10, marginBottom:14 }}>
-              {[["Invoice Amount", showDetail.amount],["Amount Paid", showDetail.paid],["Balance Due", showDetail.amount-showDetail.paid]].map(([l,v])=>(
+              {[
+                ["Invoice Amount", parseFloat(showDetail.total||0)],
+                ["Amount Paid",    parseFloat(showDetail.paid_amount||0)],
+                ["Balance Due",    parseFloat(showDetail.total||0)-parseFloat(showDetail.paid_amount||0)],
+              ].map(([l,v])=>(
                 <div key={l} style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
                   <span style={{ fontSize:12, color:C.textMid }}>{l}</span>
-                  <span style={{ fontSize:13, fontWeight:700, color:l==="Balance Due"?C.amber:C.text, fontFamily:font }}>AED {v.toLocaleString()}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:l==="Balance Due"?C.amber:C.text, fontFamily:font }}>
+                    AED {v.toLocaleString()}
+                  </span>
                 </div>
               ))}
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <Btn variant="ghost">Download PDF</Btn>
-              <Btn variant="ghost">Send Reminder</Btn>
-              {showDetail.paid < showDetail.amount && <Btn>Record Payment</Btn>}
+              {parseFloat(showDetail.paid_amount||0) < parseFloat(showDetail.total||0) && (
+                <Btn onClick={()=>recordPayment(showDetail.id, parseFloat(showDetail.total)-parseFloat(showDetail.paid_amount||0))}>
+                  Record Full Payment
+                </Btn>
+              )}
+              <Btn variant="ghost" onClick={()=>setShowDetail(null)}>Close</Btn>
             </div>
           </div>
         )}
@@ -1407,25 +1535,58 @@ const NAV = [
 
 const COMPANIES = ["Horizon Tech FZE", "Nexus Holdings LLC", "Alpha Ventures DMCC"];
 
+
 /* ═══════════════════════════════════════════════════════════════
    ROOT APP
 ═══════════════════════════════════════════════════════════════ */
 export default function App() {
-  const [page, setPage]         = useState("dashboard");
-  const [company, setCompany]   = useState(0);
-  const [showCo, setShowCo]     = useState(false);
+  const router = useRouter();
+  const [token,   setToken]   = useState(null);
+  const [user,    setUser]    = useState(null);
+  const [company, setCompany] = useState(null);
+  const [ready,   setReady]   = useState(false);
+
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (!t) { router.replace("/login"); return; }
+    setToken(t);
+    try { setUser(JSON.parse(localStorage.getItem("user") || "null")); } catch {}
+    try { setCompany(JSON.parse(localStorage.getItem("company") || "null")); } catch {}
+    setReady(true);
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    localStorage.removeItem("company");
+    router.push("/login");
+  };
+
+  const [page, setPage]           = useState("dashboard");
+  const [coIdx, setCoIdx]         = useState(0);
+  const [showCo, setShowCo]       = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [search, setSearch]     = useState("");
+  const [search, setSearch]       = useState("");
+
+  if (!ready) return (
+    <div style={{ height:"100vh", background:C.bg, display:"flex", alignItems:"center",
+      justifyContent:"center", fontFamily:font, color:C.textDim, fontSize:12 }}>
+      Loading…
+    </div>
+  );
 
   const SW = collapsed ? 58 : 224;
+  const companyName = company?.name || "SmartAccounting";
+  const userInitials = user?.name ? user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() : "??";
 
   const pageLabels = Object.fromEntries(NAV.map(n=>[n.id,n.label]));
 
   const renderPage = () => {
     switch(page) {
-      case "dashboard": return <Dashboard/>;
-      case "invoices":  return <Invoices/>;
+      case "dashboard": return <Dashboard token={token}/>;
+      case "invoices":  return <Invoices  token={token}/>;
       case "coa":       return <ChartOfAccounts/>;
       case "gl":        return <GeneralLedger/>;
       case "banking":   return <Banking/>;
@@ -1484,32 +1645,14 @@ export default function App() {
               <div style={{ width:22, height:22, borderRadius:5, background:C.teal,
                 display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:9, fontWeight:900, color:C.bg, flexShrink:0 }}>
-                {COMPANIES[company][0]}
+                {companyName[0]}
               </div>
               <span style={{ fontSize:10, fontWeight:600, flex:1, textAlign:"left",
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                {COMPANIES[company]}
+                {companyName}
               </span>
               <span style={{ fontSize:10, color:C.textDim }}>⌄</span>
             </button>
-            {showCo && (
-              <div style={{ position:"absolute", top:"100%", left:12, right:12, marginTop:4,
-                background:C.surfaceB, border:`1px solid ${C.border}`, borderRadius:10,
-                overflow:"hidden", zIndex:200, boxShadow:"0 16px 40px rgba(0,0,0,0.5)" }}>
-                {COMPANIES.map((c,i)=>(
-                  <button key={i} onClick={()=>{setCompany(i);setShowCo(false);}} style={{
-                    width:"100%", display:"flex", alignItems:"center", gap:8,
-                    padding:"9px 12px", background:i===company?`${C.teal}15`:"none",
-                    border:"none", cursor:"pointer",
-                    color:i===company?C.teal:C.textMid, fontSize:11, fontWeight:i===company?700:400 }}>
-                    <div style={{ width:20, height:20, borderRadius:4, background:`${C.teal}20`,
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      fontSize:8, fontWeight:800, color:C.teal }}>{c[0]}</div>
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
@@ -1565,7 +1708,7 @@ export default function App() {
           display:"flex", alignItems:"center", padding:"0 22px", gap:14, flexShrink:0 }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:9, color:C.textDim, letterSpacing:"0.06em", textTransform:"uppercase" }}>
-              {COMPANIES[company]}
+              {companyName}
             </div>
             <div style={{ fontSize:14, fontWeight:800, color:C.text, fontFamily:font }}>
               {pageLabels[page] || "Dashboard"}
@@ -1630,11 +1773,24 @@ export default function App() {
             )}
           </div>
 
-          {/* Avatar */}
-          <div style={{ width:34, height:34, borderRadius:9,
-            background:`linear-gradient(135deg, ${C.sky}, ${C.violet})`,
-            display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:11, fontWeight:900, color:"#fff", cursor:"pointer", fontFamily:font }}>JD</div>
+          {/* User avatar + logout */}
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:C.text }}>{user?.name || "User"}</div>
+              <div style={{ fontSize:9, color:C.textDim }}>{user?.role || "admin"}</div>
+            </div>
+            <div style={{ width:34, height:34, borderRadius:9,
+              background:`linear-gradient(135deg, ${C.sky}, ${C.violet})`,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:11, fontWeight:900, color:"#fff", cursor:"pointer", fontFamily:font }}>
+              {userInitials}
+            </div>
+            <button onClick={logout} title="Sign out" style={{
+              width:34, height:34, borderRadius:9, border:`1px solid ${C.border}`,
+              background:C.raised, cursor:"pointer", fontSize:14, color:C.textMid,
+              display:"flex", alignItems:"center", justifyContent:"center",
+            }}>⎋</button>
+          </div>
         </div>
 
         {/* Page Content */}
