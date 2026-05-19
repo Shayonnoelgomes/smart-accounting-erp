@@ -3,7 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const fs = require('fs');
+const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
+const db = require('./db');
 
 const authRoutes = require('./routes/auth');
 const companiesRoutes = require('./routes/companies');
@@ -74,9 +77,21 @@ app.use('/api/expenses', expensesRoutes);
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use(errorHandler);
 
+async function runMigrations() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const sql = fs.readFileSync(path.join(__dirname, 'db', 'migrations.sql'), 'utf8');
+    await db.query(sql);
+    console.log('Migrations applied successfully.');
+  } catch (err) {
+    console.error('Migration error (non-fatal):', err.message);
+  }
+}
+
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Smart Accounting API running on port ${PORT} [${process.env.NODE_ENV}]`);
+  await runMigrations();
 });
 
 module.exports = app;
