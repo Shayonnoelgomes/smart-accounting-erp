@@ -19,6 +19,12 @@ const bankingRoutes = require('./routes/banking');
 const vatRoutes = require('./routes/vat');
 const reportsRoutes = require('./routes/reports');
 const dashboardRoutes = require('./routes/dashboard');
+const quotesRoutes = require('./routes/quotes');
+const salesOrdersRoutes = require('./routes/sales-orders');
+const purchaseOrdersRoutes = require('./routes/purchase-orders');
+const creditNotesRoutes = require('./routes/credit-notes');
+const vendorCreditsRoutes = require('./routes/vendor-credits');
+const expensesRoutes = require('./routes/expenses');
 
 const app = express();
 
@@ -58,6 +64,12 @@ app.use('/api/banking', bankingRoutes);
 app.use('/api/vat', vatRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/quotes', quotesRoutes);
+app.use('/api/sales-orders', salesOrdersRoutes);
+app.use('/api/purchase-orders', purchaseOrdersRoutes);
+app.use('/api/credit-notes', creditNotesRoutes);
+app.use('/api/vendor-credits', vendorCreditsRoutes);
+app.use('/api/expenses', expensesRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use(errorHandler);

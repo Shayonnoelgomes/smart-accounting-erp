@@ -2082,6 +2082,1063 @@ function Bills({ token }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   QUOTES
+═══════════════════════════════════════════════════════════════ */
+function Quotes({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const emptyLine = { description:"", quantity:1, unit_price:0, tax_rate:5 };
+  const emptyForm = { customer_id:"", number:"", date:new Date().toISOString().slice(0,10), expiry_date:"", notes:"", terms:"", lines:[{...emptyLine}] };
+  const [rows, setRows] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+  const fetch_ = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_URL}/api/quotes?search=${search}`, {headers:h});
+      const d = await r.json();
+      setRows(d.data || []);
+    } catch { setRows([]); } finally { setLoading(false); }
+  };
+  const fetchCustomers = async () => {
+    try { const r = await fetch(`${API_URL}/api/customers`, {headers:h}); const d = await r.json(); setCustomers(d.data || []); } catch {}
+  };
+  useEffect(() => { fetch_(); fetchCustomers(); }, [search]);
+  const setL = (k,v) => setForm(f => ({...f,[k]:v}));
+  const setLine = (i,k,v) => setForm(f => { const ls=[...f.lines]; ls[i]={...ls[i],[k]:v}; return {...f,lines:ls}; });
+  const addLine = () => setForm(f=>({...f,lines:[...f.lines,{...emptyLine}]}));
+  const removeLine = i => setForm(f=>({...f,lines:f.lines.filter((_,j)=>j!==i)}));
+  const subtotal = form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0),0);
+  const tax = form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0)*(parseFloat(l.tax_rate||0)/100),0);
+  const openNew = () => { setForm({...emptyForm,number:`QTE-${Date.now().toString().slice(-4)}`}); setSelected(null); setModal("form"); };
+  const openEdit = async (row) => {
+    try { const r = await fetch(`${API_URL}/api/quotes/${row.id}`,{headers:h}); const d=await r.json();
+      setForm({...d, lines:d.lines||[{...emptyLine}]}); setSelected(row); setModal("form"); } catch {}
+  };
+  const save = async () => {
+    setSaving(true);
+    try {
+      const url = selected ? `${API_URL}/api/quotes/${selected.id}` : `${API_URL}/api/quotes`;
+      const r = await fetch(url, { method:selected?"PUT":"POST", headers:{...h,"Content-Type":"application/json"}, body:JSON.stringify(form) });
+      if (!r.ok) { const e=await r.json(); throw new Error(e.error||"Failed"); }
+      showToast(selected?"Quote updated":"Quote created"); setModal(null); fetch_();
+    } catch(e) { showToast(e.message, false); } finally { setSaving(false); }
+  };
+  const del = async () => {
+    try { await fetch(`${API_URL}/api/quotes/${selected.id}`,{method:"DELETE",headers:h}); showToast("Deleted"); setModal(null); fetch_(); } catch { showToast("Delete failed",false); }
+  };
+  const convert = async (row) => {
+    try { const r=await fetch(`${API_URL}/api/quotes/${row.id}/convert`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({due_date:row.expiry_date})});
+      if (!r.ok) throw new Error("Failed"); showToast("Converted to Invoice"); fetch_(); } catch { showToast("Conversion failed",false); }
+  };
+  const statusColor = s => ({draft:C.textDim,sent:C.sky,accepted:C.emerald,rejected:C.rose,expired:C.amber,converted:C.violet}[s]||C.textDim);
+  return (
+    <div>
+      {toast && <div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>Quotes</div>
+        <div style={{display:"flex",gap:10}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search quotes..." style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${C.border}`,fontSize:13,width:200}} />
+          <button onClick={openNew} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ New Quote</button>
+        </div>
+      </div>
+      {loading ? <div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div> : (
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>
+              {["Number","Customer","Date","Expiry","Amount","Status",""].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}
+            </tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={7} style={{textAlign:"center",padding:32,color:C.textMid}}>No quotes yet</td></tr>:rows.map(r=>(
+              <tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",fontWeight:700,color:C.teal}}>{r.number}</td>
+                <td style={{padding:"10px 14px"}}>{r.customer_name}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.date}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.expiry_date||"—"}</td>
+                <td style={{padding:"10px 14px",fontWeight:700}}>${parseFloat(r.total).toLocaleString()}</td>
+                <td style={{padding:"10px 14px"}}><span style={{background:`${statusColor(r.status)}18`,color:statusColor(r.status),padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{r.status}</span></td>
+                <td style={{padding:"10px 14px",display:"flex",gap:8}}>
+                  <button onClick={()=>openEdit(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",fontSize:11}}>Edit</button>
+                  {r.status!=="converted"&&<button onClick={()=>convert(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.teal}`,color:C.teal,background:"#fff",cursor:"pointer",fontSize:11}}>→ Invoice</button>}
+                  <button onClick={()=>{setSelected(r);setModal("delete");}} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.rose}`,color:C.rose,background:"#fff",cursor:"pointer",fontSize:11}}>Del</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="delete"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{background:"#fff",borderRadius:16,padding:32,width:340,textAlign:"center"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Delete quote?</div>
+          <div style={{color:C.textMid,fontSize:13,marginBottom:24}}>{selected?.number}</div>
+          <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"8px 20px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={del} style={{padding:"8px 20px",borderRadius:8,background:C.rose,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>Delete</button>
+          </div>
+        </div>
+      </div>}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:760,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>{selected?"Edit Quote":"New Quote"}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>CUSTOMER *</label>
+              <select value={form.customer_id} onChange={e=>setL("customer_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select customer</option>
+                {customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>QUOTE NUMBER *</label>
+              <input value={form.number} onChange={e=>setL("number",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DATE *</label>
+              <input type="date" value={form.date} onChange={e=>setL("date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>EXPIRY DATE</label>
+              <input type="date" value={form.expiry_date} onChange={e=>setL("expiry_date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>TERMS</label>
+              <input value={form.terms} onChange={e=>setL("terms",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>NOTES</label>
+              <input value={form.notes} onChange={e=>setL("notes",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{fontWeight:700,fontSize:12,color:C.textMid,marginBottom:8}}>LINE ITEMS</div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:8}}>
+            <thead><tr style={{background:C.raised}}>{["Description","Qty","Unit Price","VAT %","Amount",""].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:C.textMid}}>{h}</th>)}</tr></thead>
+            <tbody>{form.lines.map((l,i)=>{
+              const amt=parseFloat(l.quantity||0)*parseFloat(l.unit_price||0);
+              return(<tr key={i}>
+                <td style={{padding:"4px 4px"}}><input value={l.description} onChange={e=>setLine(i,"description",e.target.value)} style={{width:"100%",padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12,boxSizing:"border-box"}} /></td>
+                <td style={{padding:"4px 4px"}}><input type="number" value={l.quantity} onChange={e=>setLine(i,"quantity",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td style={{padding:"4px 4px"}}><input type="number" value={l.unit_price} onChange={e=>setLine(i,"unit_price",e.target.value)} style={{width:90,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td style={{padding:"4px 4px"}}><input type="number" value={l.tax_rate} onChange={e=>setLine(i,"tax_rate",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td style={{padding:"4px 8px",fontWeight:700}}>${amt.toFixed(2)}</td>
+                <td><button onClick={()=>removeLine(i)} style={{background:"none",border:"none",color:C.rose,cursor:"pointer",fontSize:16}}>✕</button></td>
+              </tr>);
+            })}</tbody>
+          </table>
+          <button onClick={addLine} style={{fontSize:12,color:C.teal,background:"none",border:`1px dashed ${C.teal}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",marginBottom:14}}>+ Add Line</button>
+          <div style={{textAlign:"right",fontSize:13,color:C.textMid,marginBottom:20}}>
+            Subtotal: <b>${subtotal.toFixed(2)}</b> &nbsp;|&nbsp; VAT: <b>${tax.toFixed(2)}</b> &nbsp;|&nbsp; Total: <b style={{color:C.text,fontSize:15}}>${(subtotal+tax).toFixed(2)}</b>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Save Quote"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SALES ORDERS
+═══════════════════════════════════════════════════════════════ */
+function SalesOrders({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const emptyLine = { description:"", quantity:1, unit_price:0, tax_rate:5 };
+  const emptyForm = { customer_id:"", number:"", order_date:new Date().toISOString().slice(0,10), delivery_date:"", shipping_address:"", notes:"", lines:[{...emptyLine}] };
+  const [rows, setRows] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+  const fetch_ = async () => {
+    setLoading(true);
+    try { const r=await fetch(`${API_URL}/api/sales-orders?search=${search}`,{headers:h}); const d=await r.json(); setRows(d.data||[]); }
+    catch { setRows([]); } finally { setLoading(false); }
+  };
+  const fetchCustomers = async () => {
+    try { const r=await fetch(`${API_URL}/api/customers`,{headers:h}); const d=await r.json(); setCustomers(d.data||[]); } catch {}
+  };
+  useEffect(()=>{fetch_();fetchCustomers();},[search]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const setLine=(i,k,v)=>setForm(f=>{const ls=[...f.lines];ls[i]={...ls[i],[k]:v};return{...f,lines:ls};});
+  const addLine=()=>setForm(f=>({...f,lines:[...f.lines,{...emptyLine}]}));
+  const removeLine=i=>setForm(f=>({...f,lines:f.lines.filter((_,j)=>j!==i)}));
+  const subtotal=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0),0);
+  const tax=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0)*(parseFloat(l.tax_rate||0)/100),0);
+  const openNew=()=>{setForm({...emptyForm,number:`SO-${Date.now().toString().slice(-4)}`});setSelected(null);setModal("form");};
+  const openEdit=async(row)=>{
+    try{const r=await fetch(`${API_URL}/api/sales-orders/${row.id}`,{headers:h});const d=await r.json();
+      setForm({...d,lines:d.lines||[{...emptyLine}]});setSelected(row);setModal("form");}catch{}
+  };
+  const save=async()=>{
+    setSaving(true);
+    try{
+      const url=selected?`${API_URL}/api/sales-orders/${selected.id}`:`${API_URL}/api/sales-orders`;
+      const r=await fetch(url,{method:selected?"PUT":"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(form)});
+      if(!r.ok){const e=await r.json();throw new Error(e.error||"Failed");}
+      showToast(selected?"Order updated":"Order created");setModal(null);fetch_();
+    }catch(e){showToast(e.message,false);}finally{setSaving(false);}
+  };
+  const del=async()=>{
+    try{await fetch(`${API_URL}/api/sales-orders/${selected.id}`,{method:"DELETE",headers:h});showToast("Deleted");setModal(null);fetch_();}
+    catch{showToast("Delete failed",false);}
+  };
+  const convert=async(row)=>{
+    try{const r=await fetch(`${API_URL}/api/sales-orders/${row.id}/convert`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({due_date:row.delivery_date})});
+      if(!r.ok)throw new Error("Failed");showToast("Converted to Invoice");fetch_();}
+    catch{showToast("Conversion failed",false);}
+  };
+  const statusColor=s=>({draft:C.textDim,confirmed:C.sky,shipped:C.violet,delivered:C.emerald,cancelled:C.rose,converted:C.amber}[s]||C.textDim);
+  return(
+    <div>
+      {toast&&<div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>Sales Orders</div>
+        <div style={{display:"flex",gap:10}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search orders..." style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${C.border}`,fontSize:13,width:200}} />
+          <button onClick={openNew} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ New Order</button>
+        </div>
+      </div>
+      {loading?<div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div>:(
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>{["Number","Customer","Order Date","Delivery","Amount","Status",""].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}</tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={7} style={{textAlign:"center",padding:32,color:C.textMid}}>No sales orders yet</td></tr>:rows.map(r=>(
+              <tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",fontWeight:700,color:C.teal}}>{r.number}</td>
+                <td style={{padding:"10px 14px"}}>{r.customer_name}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.order_date}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.delivery_date||"—"}</td>
+                <td style={{padding:"10px 14px",fontWeight:700}}>${parseFloat(r.total).toLocaleString()}</td>
+                <td style={{padding:"10px 14px"}}><span style={{background:`${statusColor(r.status)}18`,color:statusColor(r.status),padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{r.status}</span></td>
+                <td style={{padding:"10px 14px",display:"flex",gap:8}}>
+                  <button onClick={()=>openEdit(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",fontSize:11}}>Edit</button>
+                  {r.status!=="converted"&&<button onClick={()=>convert(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.teal}`,color:C.teal,background:"#fff",cursor:"pointer",fontSize:11}}>→ Invoice</button>}
+                  <button onClick={()=>{setSelected(r);setModal("delete");}} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.rose}`,color:C.rose,background:"#fff",cursor:"pointer",fontSize:11}}>Del</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="delete"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{background:"#fff",borderRadius:16,padding:32,width:340,textAlign:"center"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Delete this order?</div>
+          <div style={{color:C.textMid,fontSize:13,marginBottom:24}}>{selected?.number}</div>
+          <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"8px 20px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={del} style={{padding:"8px 20px",borderRadius:8,background:C.rose,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>Delete</button>
+          </div>
+        </div>
+      </div>}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:760,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>{selected?"Edit Sales Order":"New Sales Order"}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>CUSTOMER *</label>
+              <select value={form.customer_id} onChange={e=>setL("customer_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select customer</option>
+                {customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>ORDER NUMBER *</label>
+              <input value={form.number} onChange={e=>setL("number",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>ORDER DATE *</label>
+              <input type="date" value={form.order_date} onChange={e=>setL("order_date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DELIVERY DATE</label>
+              <input type="date" value={form.delivery_date} onChange={e=>setL("delivery_date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>SHIPPING ADDRESS</label>
+              <input value={form.shipping_address} onChange={e=>setL("shipping_address",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{fontWeight:700,fontSize:12,color:C.textMid,marginBottom:8}}>LINE ITEMS</div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:8}}>
+            <thead><tr style={{background:C.raised}}>{["Description","Qty","Unit Price","VAT %","Amount",""].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:C.textMid}}>{h}</th>)}</tr></thead>
+            <tbody>{form.lines.map((l,i)=>{
+              const amt=parseFloat(l.quantity||0)*parseFloat(l.unit_price||0);
+              return(<tr key={i}>
+                <td><input value={l.description} onChange={e=>setLine(i,"description",e.target.value)} style={{width:"100%",padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12,boxSizing:"border-box"}} /></td>
+                <td><input type="number" value={l.quantity} onChange={e=>setLine(i,"quantity",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.unit_price} onChange={e=>setLine(i,"unit_price",e.target.value)} style={{width:90,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.tax_rate} onChange={e=>setLine(i,"tax_rate",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td style={{padding:"4px 8px",fontWeight:700}}>${amt.toFixed(2)}</td>
+                <td><button onClick={()=>removeLine(i)} style={{background:"none",border:"none",color:C.rose,cursor:"pointer",fontSize:16}}>✕</button></td>
+              </tr>);
+            })}</tbody>
+          </table>
+          <button onClick={addLine} style={{fontSize:12,color:C.teal,background:"none",border:`1px dashed ${C.teal}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",marginBottom:14}}>+ Add Line</button>
+          <div style={{textAlign:"right",fontSize:13,color:C.textMid,marginBottom:20}}>
+            Subtotal: <b>${subtotal.toFixed(2)}</b> &nbsp;|&nbsp; VAT: <b>${tax.toFixed(2)}</b> &nbsp;|&nbsp; Total: <b style={{color:C.text,fontSize:15}}>${(subtotal+tax).toFixed(2)}</b>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Save Order"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAYMENT RECEIVED
+═══════════════════════════════════════════════════════════════ */
+function PaymentReceived({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const emptyForm = { party_id:"", amount:"", date:new Date().toISOString().slice(0,10), method:"bank_transfer", reference:"", notes:"" };
+  const [rows, setRows] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  const fetch_=async()=>{
+    setLoading(true);
+    try{const r=await fetch(`${API_URL}/api/payments?type=receipt`,{headers:h});const d=await r.json();setRows(d.data||[]);}
+    catch{setRows([]);}finally{setLoading(false);}
+  };
+  const fetchCustomers=async()=>{
+    try{const r=await fetch(`${API_URL}/api/customers`,{headers:h});const d=await r.json();setCustomers(d.data||[]);}catch{}
+  };
+  useEffect(()=>{fetch_();fetchCustomers();},[]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const save=async()=>{
+    setSaving(true);
+    try{
+      const r=await fetch(`${API_URL}/api/payments`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({...form,type:"receipt"})});
+      if(!r.ok){const e=await r.json();throw new Error(e.error||"Failed");}
+      showToast("Payment recorded");setModal(null);setForm(emptyForm);fetch_();
+    }catch(e){showToast(e.message,false);}finally{setSaving(false);}
+  };
+  const methods=["bank_transfer","cash","cheque","card","online"];
+  const totalReceived=rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  return(
+    <div>
+      {toast&&<div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:22,fontWeight:800,color:C.text}}>Payments Received</div>
+          <div style={{fontSize:13,color:C.textMid,marginTop:2}}>Total received: <b style={{color:C.emerald}}>${totalReceived.toLocaleString(undefined,{minimumFractionDigits:2})}</b></div>
+        </div>
+        <button onClick={()=>{setForm(emptyForm);setModal("form");}} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ Record Payment</button>
+      </div>
+      {loading?<div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div>:(
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>{["Date","Customer","Amount","Method","Reference","Notes"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}</tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={6} style={{textAlign:"center",padding:32,color:C.textMid}}>No payments recorded</td></tr>:rows.map(r=>{
+              const cust=customers.find(c=>c.id===r.party_id);
+              return(<tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.date}</td>
+                <td style={{padding:"10px 14px"}}>{cust?.name||"—"}</td>
+                <td style={{padding:"10px 14px",fontWeight:700,color:C.emerald}}>${parseFloat(r.amount).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                <td style={{padding:"10px 14px",color:C.textMid,textTransform:"capitalize"}}>{r.method?.replace(/_/g," ")}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.reference||"—"}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.notes||"—"}</td>
+              </tr>);
+            })}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:520}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>Record Payment Received</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>CUSTOMER *</label>
+              <select value={form.party_id} onChange={e=>setL("party_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select customer</option>
+                {customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>AMOUNT *</label>
+              <input type="number" value={form.amount} onChange={e=>setL("amount",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DATE *</label>
+              <input type="date" value={form.date} onChange={e=>setL("date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>METHOD</label>
+              <select value={form.method} onChange={e=>setL("method",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                {methods.map(m=><option key={m} value={m}>{m.replace(/_/g," ")}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>REFERENCE</label>
+              <input value={form.reference} onChange={e=>setL("reference",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>NOTES</label>
+              <input value={form.notes} onChange={e=>setL("notes",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.emerald,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Record Payment"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CREDIT NOTE
+═══════════════════════════════════════════════════════════════ */
+function CreditNote({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const emptyLine = { description:"", quantity:1, unit_price:0, tax_rate:5 };
+  const emptyForm = { customer_id:"", invoice_id:"", number:"", date:new Date().toISOString().slice(0,10), reason:"", lines:[{...emptyLine}] };
+  const [rows, setRows] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  const fetch_=async()=>{
+    setLoading(true);
+    try{const r=await fetch(`${API_URL}/api/credit-notes`,{headers:h});const d=await r.json();setRows(d.data||[]);}
+    catch{setRows([]);}finally{setLoading(false);}
+  };
+  const fetchCustomers=async()=>{
+    try{const r=await fetch(`${API_URL}/api/customers`,{headers:h});const d=await r.json();setCustomers(d.data||[]);}catch{}
+  };
+  const fetchInvoices=async()=>{
+    try{const r=await fetch(`${API_URL}/api/invoices`,{headers:h});const d=await r.json();setInvoices(d.data||[]);}catch{}
+  };
+  useEffect(()=>{fetch_();fetchCustomers();fetchInvoices();},[]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const setLine=(i,k,v)=>setForm(f=>{const ls=[...f.lines];ls[i]={...ls[i],[k]:v};return{...f,lines:ls};});
+  const addLine=()=>setForm(f=>({...f,lines:[...f.lines,{...emptyLine}]}));
+  const removeLine=i=>setForm(f=>({...f,lines:f.lines.filter((_,j)=>j!==i)}));
+  const subtotal=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0),0);
+  const tax=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0)*(parseFloat(l.tax_rate||0)/100),0);
+  const openNew=()=>{setForm({...emptyForm,number:`CN-${Date.now().toString().slice(-4)}`});setSelected(null);setModal("form");};
+  const openEdit=async(row)=>{
+    try{const r=await fetch(`${API_URL}/api/credit-notes/${row.id}`,{headers:h});const d=await r.json();
+      setForm({...d,lines:d.lines||[{...emptyLine}]});setSelected(row);setModal("form");}catch{}
+  };
+  const save=async()=>{
+    setSaving(true);
+    try{
+      const url=selected?`${API_URL}/api/credit-notes/${selected.id}`:`${API_URL}/api/credit-notes`;
+      const r=await fetch(url,{method:selected?"PUT":"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(form)});
+      if(!r.ok){const e=await r.json();throw new Error(e.error||"Failed");}
+      showToast(selected?"Updated":"Credit note created");setModal(null);fetch_();
+    }catch(e){showToast(e.message,false);}finally{setSaving(false);}
+  };
+  const del=async()=>{
+    try{await fetch(`${API_URL}/api/credit-notes/${selected.id}`,{method:"DELETE",headers:h});showToast("Deleted");setModal(null);fetch_();}
+    catch{showToast("Delete failed",false);}
+  };
+  const apply=async(row)=>{
+    const inv=invoices.find(i=>i.id===row.invoice_id);
+    if(!inv){showToast("No invoice linked",false);return;}
+    const available=parseFloat(row.total)-parseFloat(row.applied_amount);
+    try{
+      const r=await fetch(`${API_URL}/api/credit-notes/${row.id}/apply`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({invoice_id:row.invoice_id,amount:available})});
+      if(!r.ok)throw new Error("Failed");showToast("Applied to invoice");fetch_();
+    }catch{showToast("Apply failed",false);}
+  };
+  const statusColor=s=>({draft:C.textDim,applied:C.emerald,void:C.rose}[s]||C.textDim);
+  return(
+    <div>
+      {toast&&<div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>Credit Notes</div>
+        <button onClick={openNew} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ New Credit Note</button>
+      </div>
+      {loading?<div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div>:(
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>{["Number","Customer","Invoice","Date","Total","Applied","Status",""].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}</tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={8} style={{textAlign:"center",padding:32,color:C.textMid}}>No credit notes</td></tr>:rows.map(r=>(
+              <tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",fontWeight:700,color:C.teal}}>{r.number}</td>
+                <td style={{padding:"10px 14px"}}>{r.customer_name}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.invoice_number||"—"}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.date}</td>
+                <td style={{padding:"10px 14px",fontWeight:700}}>${parseFloat(r.total).toLocaleString()}</td>
+                <td style={{padding:"10px 14px",color:C.emerald}}>${parseFloat(r.applied_amount).toLocaleString()}</td>
+                <td style={{padding:"10px 14px"}}><span style={{background:`${statusColor(r.status)}18`,color:statusColor(r.status),padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{r.status}</span></td>
+                <td style={{padding:"10px 14px",display:"flex",gap:8}}>
+                  <button onClick={()=>openEdit(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",fontSize:11}}>Edit</button>
+                  {r.status==="draft"&&r.invoice_id&&<button onClick={()=>apply(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.emerald}`,color:C.emerald,background:"#fff",cursor:"pointer",fontSize:11}}>Apply</button>}
+                  <button onClick={()=>{setSelected(r);setModal("delete");}} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.rose}`,color:C.rose,background:"#fff",cursor:"pointer",fontSize:11}}>Del</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="delete"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{background:"#fff",borderRadius:16,padding:32,width:340,textAlign:"center"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Delete credit note?</div>
+          <div style={{color:C.textMid,fontSize:13,marginBottom:24}}>{selected?.number}</div>
+          <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"8px 20px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={del} style={{padding:"8px 20px",borderRadius:8,background:C.rose,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>Delete</button>
+          </div>
+        </div>
+      </div>}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:760,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>{selected?"Edit Credit Note":"New Credit Note"}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>CUSTOMER *</label>
+              <select value={form.customer_id} onChange={e=>setL("customer_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select customer</option>
+                {customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>NUMBER *</label>
+              <input value={form.number} onChange={e=>setL("number",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DATE *</label>
+              <input type="date" value={form.date} onChange={e=>setL("date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>ORIGINAL INVOICE</label>
+              <select value={form.invoice_id} onChange={e=>setL("invoice_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">None</option>
+                {invoices.filter(i=>i.customer_id===form.customer_id||!form.customer_id).map(i=><option key={i.id} value={i.id}>{i.number}</option>)}
+              </select></div>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>REASON</label>
+              <input value={form.reason} onChange={e=>setL("reason",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{fontWeight:700,fontSize:12,color:C.textMid,marginBottom:8}}>LINE ITEMS</div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:8}}>
+            <thead><tr style={{background:C.raised}}>{["Description","Qty","Unit Price","VAT %","Amount",""].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:C.textMid}}>{h}</th>)}</tr></thead>
+            <tbody>{form.lines.map((l,i)=>{
+              const amt=parseFloat(l.quantity||0)*parseFloat(l.unit_price||0);
+              return(<tr key={i}>
+                <td><input value={l.description} onChange={e=>setLine(i,"description",e.target.value)} style={{width:"100%",padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12,boxSizing:"border-box"}} /></td>
+                <td><input type="number" value={l.quantity} onChange={e=>setLine(i,"quantity",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.unit_price} onChange={e=>setLine(i,"unit_price",e.target.value)} style={{width:90,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.tax_rate} onChange={e=>setLine(i,"tax_rate",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td style={{padding:"4px 8px",fontWeight:700}}>${amt.toFixed(2)}</td>
+                <td><button onClick={()=>removeLine(i)} style={{background:"none",border:"none",color:C.rose,cursor:"pointer",fontSize:16}}>✕</button></td>
+              </tr>);
+            })}</tbody>
+          </table>
+          <button onClick={addLine} style={{fontSize:12,color:C.teal,background:"none",border:`1px dashed ${C.teal}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",marginBottom:14}}>+ Add Line</button>
+          <div style={{textAlign:"right",fontSize:13,color:C.textMid,marginBottom:20}}>
+            Subtotal: <b>${subtotal.toFixed(2)}</b> &nbsp;|&nbsp; VAT: <b>${tax.toFixed(2)}</b> &nbsp;|&nbsp; Total: <b style={{color:C.text,fontSize:15}}>${(subtotal+tax).toFixed(2)}</b>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Save"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EXPENSES
+═══════════════════════════════════════════════════════════════ */
+function Expenses({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const categories = ["Travel","Meals","Office Supplies","Software","Hardware","Marketing","Professional Fees","Utilities","Rent","Other"];
+  const emptyForm = { category:"", amount:"", date:new Date().toISOString().slice(0,10), description:"", receipt_url:"" };
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  const fetch_=async()=>{
+    setLoading(true);
+    try{const r=await fetch(`${API_URL}/api/expenses?search=${search}`,{headers:h});const d=await r.json();setRows(d.data||[]);}
+    catch{setRows([]);}finally{setLoading(false);}
+  };
+  useEffect(()=>{fetch_();},[search]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const openNew=()=>{setForm(emptyForm);setSelected(null);setModal("form");};
+  const openEdit=(row)=>{setForm({...row});setSelected(row);setModal("form");};
+  const save=async()=>{
+    setSaving(true);
+    try{
+      const url=selected?`${API_URL}/api/expenses/${selected.id}`:`${API_URL}/api/expenses`;
+      const r=await fetch(url,{method:selected?"PUT":"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(form)});
+      if(!r.ok){const e=await r.json();throw new Error(e.error||"Failed");}
+      showToast(selected?"Updated":"Expense added");setModal(null);fetch_();
+    }catch(e){showToast(e.message,false);}finally{setSaving(false);}
+  };
+  const del=async()=>{
+    try{await fetch(`${API_URL}/api/expenses/${selected.id}`,{method:"DELETE",headers:h});showToast("Deleted");setModal(null);fetch_();}
+    catch{showToast("Delete failed",false);}
+  };
+  const approve=async(row)=>{
+    try{const r=await fetch(`${API_URL}/api/expenses/${row.id}/approve`,{method:"PUT",headers:h});if(!r.ok)throw new Error();showToast("Approved");fetch_();}
+    catch{showToast("Failed",false);}
+  };
+  const statusColor=s=>({pending:C.amber,approved:C.emerald,rejected:C.rose,paid:C.teal}[s]||C.textDim);
+  const total=rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const approved=rows.filter(r=>r.status==="approved"||r.status==="paid").reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  return(
+    <div>
+      {toast&&<div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>Expenses</div>
+        <div style={{display:"flex",gap:10}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search expenses..." style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${C.border}`,fontSize:13,width:200}} />
+          <button onClick={openNew} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ Add Expense</button>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:14,marginBottom:20}}>
+        {[["Total",total,C.text],["Approved",approved,C.emerald],["Pending",rows.filter(r=>r.status==="pending").length+" items",C.amber]].map(([l,v,c])=>(
+          <div key={l} style={{background:C.surface,borderRadius:12,padding:"14px 20px",border:`1px solid ${C.border}`,flex:1}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.textMid,marginBottom:4}}>{l.toUpperCase()}</div>
+            <div style={{fontSize:20,fontWeight:800,color:c}}>{typeof v==="number"?"$"+v.toLocaleString(undefined,{minimumFractionDigits:2}):v}</div>
+          </div>
+        ))}
+      </div>
+      {loading?<div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div>:(
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>{["Date","Category","Description","Amount","Status","Receipt",""].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}</tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={7} style={{textAlign:"center",padding:32,color:C.textMid}}>No expenses yet</td></tr>:rows.map(r=>(
+              <tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.date}</td>
+                <td style={{padding:"10px 14px"}}>{r.category}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.description||"—"}</td>
+                <td style={{padding:"10px 14px",fontWeight:700}}>${parseFloat(r.amount).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                <td style={{padding:"10px 14px"}}><span style={{background:`${statusColor(r.status)}18`,color:statusColor(r.status),padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{r.status}</span></td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.receipt_url?<a href={r.receipt_url} target="_blank" rel="noreferrer" style={{color:C.teal}}>View</a>:"—"}</td>
+                <td style={{padding:"10px 14px",display:"flex",gap:8}}>
+                  <button onClick={()=>openEdit(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",fontSize:11}}>Edit</button>
+                  {r.status==="pending"&&<button onClick={()=>approve(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.emerald}`,color:C.emerald,background:"#fff",cursor:"pointer",fontSize:11}}>Approve</button>}
+                  <button onClick={()=>{setSelected(r);setModal("delete");}} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.rose}`,color:C.rose,background:"#fff",cursor:"pointer",fontSize:11}}>Del</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="delete"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{background:"#fff",borderRadius:16,padding:32,width:340,textAlign:"center"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Delete expense?</div>
+          <div style={{color:C.textMid,fontSize:13,marginBottom:24}}>{selected?.category} — ${selected?.amount}</div>
+          <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"8px 20px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={del} style={{padding:"8px 20px",borderRadius:8,background:C.rose,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>Delete</button>
+          </div>
+        </div>
+      </div>}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:480}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>{selected?"Edit Expense":"Add Expense"}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>CATEGORY *</label>
+              <select value={form.category} onChange={e=>setL("category",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select category</option>
+                {categories.map(c=><option key={c} value={c}>{c}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>AMOUNT *</label>
+              <input type="number" value={form.amount} onChange={e=>setL("amount",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DATE *</label>
+              <input type="date" value={form.date} onChange={e=>setL("date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>RECEIPT URL</label>
+              <input value={form.receipt_url||""} onChange={e=>setL("receipt_url",e.target.value)} placeholder="https://..." style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DESCRIPTION</label>
+              <input value={form.description||""} onChange={e=>setL("description",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Save"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PURCHASE ORDERS
+═══════════════════════════════════════════════════════════════ */
+function PurchaseOrders({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const emptyLine = { description:"", quantity:1, unit_price:0, tax_rate:5 };
+  const emptyForm = { vendor_id:"", number:"", order_date:new Date().toISOString().slice(0,10), delivery_date:"", delivery_address:"", notes:"", lines:[{...emptyLine}] };
+  const [rows, setRows] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  const fetch_=async()=>{
+    setLoading(true);
+    try{const r=await fetch(`${API_URL}/api/purchase-orders?search=${search}`,{headers:h});const d=await r.json();setRows(d.data||[]);}
+    catch{setRows([]);}finally{setLoading(false);}
+  };
+  const fetchVendors=async()=>{
+    try{const r=await fetch(`${API_URL}/api/vendors`,{headers:h});const d=await r.json();setVendors(d.data||[]);}catch{}
+  };
+  useEffect(()=>{fetch_();fetchVendors();},[search]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const setLine=(i,k,v)=>setForm(f=>{const ls=[...f.lines];ls[i]={...ls[i],[k]:v};return{...f,lines:ls};});
+  const addLine=()=>setForm(f=>({...f,lines:[...f.lines,{...emptyLine}]}));
+  const removeLine=i=>setForm(f=>({...f,lines:f.lines.filter((_,j)=>j!==i)}));
+  const subtotal=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0),0);
+  const tax=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0)*(parseFloat(l.tax_rate||0)/100),0);
+  const openNew=()=>{setForm({...emptyForm,number:`PO-${Date.now().toString().slice(-4)}`});setSelected(null);setModal("form");};
+  const openEdit=async(row)=>{
+    try{const r=await fetch(`${API_URL}/api/purchase-orders/${row.id}`,{headers:h});const d=await r.json();
+      setForm({...d,lines:d.lines||[{...emptyLine}]});setSelected(row);setModal("form");}catch{}
+  };
+  const save=async()=>{
+    setSaving(true);
+    try{
+      const url=selected?`${API_URL}/api/purchase-orders/${selected.id}`:`${API_URL}/api/purchase-orders`;
+      const r=await fetch(url,{method:selected?"PUT":"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(form)});
+      if(!r.ok){const e=await r.json();throw new Error(e.error||"Failed");}
+      showToast(selected?"Updated":"PO created");setModal(null);fetch_();
+    }catch(e){showToast(e.message,false);}finally{setSaving(false);}
+  };
+  const del=async()=>{
+    try{await fetch(`${API_URL}/api/purchase-orders/${selected.id}`,{method:"DELETE",headers:h});showToast("Deleted");setModal(null);fetch_();}
+    catch{showToast("Delete failed",false);}
+  };
+  const convert=async(row)=>{
+    try{const r=await fetch(`${API_URL}/api/purchase-orders/${row.id}/convert`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({due_date:row.delivery_date})});
+      if(!r.ok)throw new Error("Failed");showToast("Converted to Bill");fetch_();}
+    catch{showToast("Conversion failed",false);}
+  };
+  const statusColor=s=>({draft:C.textDim,sent:C.sky,received:C.emerald,cancelled:C.rose,converted:C.violet}[s]||C.textDim);
+  return(
+    <div>
+      {toast&&<div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>Purchase Orders</div>
+        <div style={{display:"flex",gap:10}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search POs..." style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${C.border}`,fontSize:13,width:200}} />
+          <button onClick={openNew} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ New PO</button>
+        </div>
+      </div>
+      {loading?<div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div>:(
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>{["Number","Supplier","Order Date","Delivery","Amount","Status",""].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}</tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={7} style={{textAlign:"center",padding:32,color:C.textMid}}>No purchase orders yet</td></tr>:rows.map(r=>(
+              <tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",fontWeight:700,color:C.teal}}>{r.number}</td>
+                <td style={{padding:"10px 14px"}}>{r.vendor_name}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.order_date}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.delivery_date||"—"}</td>
+                <td style={{padding:"10px 14px",fontWeight:700}}>${parseFloat(r.total).toLocaleString()}</td>
+                <td style={{padding:"10px 14px"}}><span style={{background:`${statusColor(r.status)}18`,color:statusColor(r.status),padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{r.status}</span></td>
+                <td style={{padding:"10px 14px",display:"flex",gap:8}}>
+                  <button onClick={()=>openEdit(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",fontSize:11}}>Edit</button>
+                  {r.status!=="converted"&&<button onClick={()=>convert(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.violet}`,color:C.violet,background:"#fff",cursor:"pointer",fontSize:11}}>→ Bill</button>}
+                  <button onClick={()=>{setSelected(r);setModal("delete");}} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.rose}`,color:C.rose,background:"#fff",cursor:"pointer",fontSize:11}}>Del</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="delete"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{background:"#fff",borderRadius:16,padding:32,width:340,textAlign:"center"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Delete this PO?</div>
+          <div style={{color:C.textMid,fontSize:13,marginBottom:24}}>{selected?.number}</div>
+          <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"8px 20px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={del} style={{padding:"8px 20px",borderRadius:8,background:C.rose,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>Delete</button>
+          </div>
+        </div>
+      </div>}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:760,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>{selected?"Edit Purchase Order":"New Purchase Order"}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>SUPPLIER *</label>
+              <select value={form.vendor_id} onChange={e=>setL("vendor_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select supplier</option>
+                {vendors.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>PO NUMBER *</label>
+              <input value={form.number} onChange={e=>setL("number",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>ORDER DATE *</label>
+              <input type="date" value={form.order_date} onChange={e=>setL("order_date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DELIVERY DATE</label>
+              <input type="date" value={form.delivery_date} onChange={e=>setL("delivery_date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DELIVERY ADDRESS</label>
+              <input value={form.delivery_address} onChange={e=>setL("delivery_address",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{fontWeight:700,fontSize:12,color:C.textMid,marginBottom:8}}>LINE ITEMS</div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:8}}>
+            <thead><tr style={{background:C.raised}}>{["Description","Qty","Unit Price","VAT %","Amount",""].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:C.textMid}}>{h}</th>)}</tr></thead>
+            <tbody>{form.lines.map((l,i)=>{
+              const amt=parseFloat(l.quantity||0)*parseFloat(l.unit_price||0);
+              return(<tr key={i}>
+                <td><input value={l.description} onChange={e=>setLine(i,"description",e.target.value)} style={{width:"100%",padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12,boxSizing:"border-box"}} /></td>
+                <td><input type="number" value={l.quantity} onChange={e=>setLine(i,"quantity",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.unit_price} onChange={e=>setLine(i,"unit_price",e.target.value)} style={{width:90,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.tax_rate} onChange={e=>setLine(i,"tax_rate",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td style={{padding:"4px 8px",fontWeight:700}}>${amt.toFixed(2)}</td>
+                <td><button onClick={()=>removeLine(i)} style={{background:"none",border:"none",color:C.rose,cursor:"pointer",fontSize:16}}>✕</button></td>
+              </tr>);
+            })}</tbody>
+          </table>
+          <button onClick={addLine} style={{fontSize:12,color:C.teal,background:"none",border:`1px dashed ${C.teal}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",marginBottom:14}}>+ Add Line</button>
+          <div style={{textAlign:"right",fontSize:13,color:C.textMid,marginBottom:20}}>
+            Subtotal: <b>${subtotal.toFixed(2)}</b> &nbsp;|&nbsp; VAT: <b>${tax.toFixed(2)}</b> &nbsp;|&nbsp; Total: <b style={{color:C.text,fontSize:15}}>${(subtotal+tax).toFixed(2)}</b>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Save PO"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PAYMENT MADE
+═══════════════════════════════════════════════════════════════ */
+function PaymentMade({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const emptyForm = { party_id:"", amount:"", date:new Date().toISOString().slice(0,10), method:"bank_transfer", reference:"", notes:"" };
+  const [rows, setRows] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  const fetch_=async()=>{
+    setLoading(true);
+    try{const r=await fetch(`${API_URL}/api/payments?type=payment`,{headers:h});const d=await r.json();setRows(d.data||[]);}
+    catch{setRows([]);}finally{setLoading(false);}
+  };
+  const fetchVendors=async()=>{
+    try{const r=await fetch(`${API_URL}/api/vendors`,{headers:h});const d=await r.json();setVendors(d.data||[]);}catch{}
+  };
+  useEffect(()=>{fetch_();fetchVendors();},[]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const save=async()=>{
+    setSaving(true);
+    try{
+      const r=await fetch(`${API_URL}/api/payments`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({...form,type:"payment"})});
+      if(!r.ok){const e=await r.json();throw new Error(e.error||"Failed");}
+      showToast("Payment recorded");setModal(null);setForm(emptyForm);fetch_();
+    }catch(e){showToast(e.message,false);}finally{setSaving(false);}
+  };
+  const methods=["bank_transfer","cash","cheque","card","online"];
+  const totalPaid=rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  return(
+    <div>
+      {toast&&<div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:22,fontWeight:800,color:C.text}}>Payments Made</div>
+          <div style={{fontSize:13,color:C.textMid,marginTop:2}}>Total paid: <b style={{color:C.rose}}>${totalPaid.toLocaleString(undefined,{minimumFractionDigits:2})}</b></div>
+        </div>
+        <button onClick={()=>{setForm(emptyForm);setModal("form");}} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ Record Payment</button>
+      </div>
+      {loading?<div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div>:(
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>{["Date","Supplier","Amount","Method","Reference","Notes"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}</tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={6} style={{textAlign:"center",padding:32,color:C.textMid}}>No payments recorded</td></tr>:rows.map(r=>{
+              const vend=vendors.find(v=>v.id===r.party_id);
+              return(<tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.date}</td>
+                <td style={{padding:"10px 14px"}}>{vend?.name||"—"}</td>
+                <td style={{padding:"10px 14px",fontWeight:700,color:C.rose}}>${parseFloat(r.amount).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+                <td style={{padding:"10px 14px",color:C.textMid,textTransform:"capitalize"}}>{r.method?.replace(/_/g," ")}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.reference||"—"}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.notes||"—"}</td>
+              </tr>);
+            })}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:520}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>Record Payment Made</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>SUPPLIER *</label>
+              <select value={form.party_id} onChange={e=>setL("party_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select supplier</option>
+                {vendors.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>AMOUNT *</label>
+              <input type="number" value={form.amount} onChange={e=>setL("amount",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DATE *</label>
+              <input type="date" value={form.date} onChange={e=>setL("date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>METHOD</label>
+              <select value={form.method} onChange={e=>setL("method",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                {methods.map(m=><option key={m} value={m}>{m.replace(/_/g," ")}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>REFERENCE</label>
+              <input value={form.reference} onChange={e=>setL("reference",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>NOTES</label>
+              <input value={form.notes} onChange={e=>setL("notes",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.rose,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Record Payment"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VENDOR CREDIT
+═══════════════════════════════════════════════════════════════ */
+function VendorCredit({ token }) {
+  const h = { Authorization:`Bearer ${token}` };
+  const emptyLine = { description:"", quantity:1, unit_price:0, tax_rate:5 };
+  const emptyForm = { vendor_id:"", bill_id:"", number:"", date:new Date().toISOString().slice(0,10), reason:"", lines:[{...emptyLine}] };
+  const [rows, setRows] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [bills, setBills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  const fetch_=async()=>{
+    setLoading(true);
+    try{const r=await fetch(`${API_URL}/api/vendor-credits`,{headers:h});const d=await r.json();setRows(d.data||[]);}
+    catch{setRows([]);}finally{setLoading(false);}
+  };
+  const fetchVendors=async()=>{
+    try{const r=await fetch(`${API_URL}/api/vendors`,{headers:h});const d=await r.json();setVendors(d.data||[]);}catch{}
+  };
+  const fetchBills=async()=>{
+    try{const r=await fetch(`${API_URL}/api/bills`,{headers:h});const d=await r.json();setBills(d.data||[]);}catch{}
+  };
+  useEffect(()=>{fetch_();fetchVendors();fetchBills();},[]);
+  const setL=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const setLine=(i,k,v)=>setForm(f=>{const ls=[...f.lines];ls[i]={...ls[i],[k]:v};return{...f,lines:ls};});
+  const addLine=()=>setForm(f=>({...f,lines:[...f.lines,{...emptyLine}]}));
+  const removeLine=i=>setForm(f=>({...f,lines:f.lines.filter((_,j)=>j!==i)}));
+  const subtotal=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0),0);
+  const tax=form.lines.reduce((s,l)=>s+parseFloat(l.quantity||0)*parseFloat(l.unit_price||0)*(parseFloat(l.tax_rate||0)/100),0);
+  const openNew=()=>{setForm({...emptyForm,number:`VC-${Date.now().toString().slice(-4)}`});setSelected(null);setModal("form");};
+  const openEdit=async(row)=>{
+    try{const r=await fetch(`${API_URL}/api/vendor-credits/${row.id}`,{headers:h});const d=await r.json();
+      setForm({...d,lines:d.lines||[{...emptyLine}]});setSelected(row);setModal("form");}catch{}
+  };
+  const save=async()=>{
+    setSaving(true);
+    try{
+      const url=selected?`${API_URL}/api/vendor-credits/${selected.id}`:`${API_URL}/api/vendor-credits`;
+      const r=await fetch(url,{method:selected?"PUT":"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify(form)});
+      if(!r.ok){const e=await r.json();throw new Error(e.error||"Failed");}
+      showToast(selected?"Updated":"Vendor credit created");setModal(null);fetch_();
+    }catch(e){showToast(e.message,false);}finally{setSaving(false);}
+  };
+  const del=async()=>{
+    try{await fetch(`${API_URL}/api/vendor-credits/${selected.id}`,{method:"DELETE",headers:h});showToast("Deleted");setModal(null);fetch_();}
+    catch{showToast("Delete failed",false);}
+  };
+  const apply=async(row)=>{
+    if(!row.bill_id){showToast("No bill linked",false);return;}
+    const available=parseFloat(row.total)-parseFloat(row.applied_amount);
+    try{
+      const r=await fetch(`${API_URL}/api/vendor-credits/${row.id}/apply`,{method:"POST",headers:{...h,"Content-Type":"application/json"},body:JSON.stringify({bill_id:row.bill_id,amount:available})});
+      if(!r.ok)throw new Error("Failed");showToast("Applied to bill");fetch_();
+    }catch{showToast("Apply failed",false);}
+  };
+  const statusColor=s=>({draft:C.textDim,applied:C.emerald,void:C.rose}[s]||C.textDim);
+  return(
+    <div>
+      {toast&&<div style={{position:"fixed",top:22,right:22,zIndex:9999,padding:"10px 20px",borderRadius:8,background:toast.ok?C.emerald:C.rose,color:"#fff",fontWeight:700,fontSize:13}}>{toast.msg}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text}}>Vendor Credits</div>
+        <button onClick={openNew} style={{padding:"8px 18px",borderRadius:8,background:C.teal,color:"#fff",fontWeight:700,border:"none",cursor:"pointer",fontSize:13}}>+ New Vendor Credit</button>
+      </div>
+      {loading?<div style={{textAlign:"center",padding:40,color:C.textMid}}>Loading...</div>:(
+        <div style={{background:C.surface,borderRadius:12,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{background:C.raised}}>{["Number","Supplier","Bill","Date","Total","Applied","Status",""].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:C.textMid,fontSize:11}}>{h}</th>)}</tr></thead>
+            <tbody>{rows.length===0?<tr><td colSpan={8} style={{textAlign:"center",padding:32,color:C.textMid}}>No vendor credits</td></tr>:rows.map(r=>(
+              <tr key={r.id} style={{borderTop:`1px solid ${C.border}`}}>
+                <td style={{padding:"10px 14px",fontWeight:700,color:C.teal}}>{r.number}</td>
+                <td style={{padding:"10px 14px"}}>{r.vendor_name}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.bill_number||"—"}</td>
+                <td style={{padding:"10px 14px",color:C.textMid}}>{r.date}</td>
+                <td style={{padding:"10px 14px",fontWeight:700}}>${parseFloat(r.total).toLocaleString()}</td>
+                <td style={{padding:"10px 14px",color:C.emerald}}>${parseFloat(r.applied_amount).toLocaleString()}</td>
+                <td style={{padding:"10px 14px"}}><span style={{background:`${statusColor(r.status)}18`,color:statusColor(r.status),padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700}}>{r.status}</span></td>
+                <td style={{padding:"10px 14px",display:"flex",gap:8}}>
+                  <button onClick={()=>openEdit(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",fontSize:11}}>Edit</button>
+                  {r.status==="draft"&&r.bill_id&&<button onClick={()=>apply(r)} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.emerald}`,color:C.emerald,background:"#fff",cursor:"pointer",fontSize:11}}>Apply</button>}
+                  <button onClick={()=>{setSelected(r);setModal("delete");}} style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.rose}`,color:C.rose,background:"#fff",cursor:"pointer",fontSize:11}}>Del</button>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {modal==="delete"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <div style={{background:"#fff",borderRadius:16,padding:32,width:340,textAlign:"center"}}>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Delete vendor credit?</div>
+          <div style={{color:C.textMid,fontSize:13,marginBottom:24}}>{selected?.number}</div>
+          <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"8px 20px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={del} style={{padding:"8px 20px",borderRadius:8,background:C.rose,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>Delete</button>
+          </div>
+        </div>
+      </div>}
+      {modal==="form"&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:900,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#fff",borderRadius:16,padding:28,width:"100%",maxWidth:760,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{fontSize:17,fontWeight:800,marginBottom:20}}>{selected?"Edit Vendor Credit":"New Vendor Credit"}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:14}}>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>SUPPLIER *</label>
+              <select value={form.vendor_id} onChange={e=>setL("vendor_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">Select supplier</option>
+                {vendors.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}
+              </select></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>NUMBER *</label>
+              <input value={form.number} onChange={e=>setL("number",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>DATE *</label>
+              <input type="date" value={form.date} onChange={e=>setL("date",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+            <div><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>ORIGINAL BILL</label>
+              <select value={form.bill_id} onChange={e=>setL("bill_id",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13}}>
+                <option value="">None</option>
+                {bills.filter(b=>b.vendor_id===form.vendor_id||!form.vendor_id).map(b=><option key={b.id} value={b.id}>{b.number}</option>)}
+              </select></div>
+            <div style={{gridColumn:"span 2"}}><label style={{fontSize:11,fontWeight:700,color:C.textMid}}>REASON</label>
+              <input value={form.reason} onChange={e=>setL("reason",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${C.border}`,marginTop:4,fontSize:13,boxSizing:"border-box"}} /></div>
+          </div>
+          <div style={{fontWeight:700,fontSize:12,color:C.textMid,marginBottom:8}}>LINE ITEMS</div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:8}}>
+            <thead><tr style={{background:C.raised}}>{["Description","Qty","Unit Price","VAT %","Amount",""].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:700,color:C.textMid}}>{h}</th>)}</tr></thead>
+            <tbody>{form.lines.map((l,i)=>{
+              const amt=parseFloat(l.quantity||0)*parseFloat(l.unit_price||0);
+              return(<tr key={i}>
+                <td><input value={l.description} onChange={e=>setLine(i,"description",e.target.value)} style={{width:"100%",padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12,boxSizing:"border-box"}} /></td>
+                <td><input type="number" value={l.quantity} onChange={e=>setLine(i,"quantity",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.unit_price} onChange={e=>setLine(i,"unit_price",e.target.value)} style={{width:90,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td><input type="number" value={l.tax_rate} onChange={e=>setLine(i,"tax_rate",e.target.value)} style={{width:60,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:12}} /></td>
+                <td style={{padding:"4px 8px",fontWeight:700}}>${amt.toFixed(2)}</td>
+                <td><button onClick={()=>removeLine(i)} style={{background:"none",border:"none",color:C.rose,cursor:"pointer",fontSize:16}}>✕</button></td>
+              </tr>);
+            })}</tbody>
+          </table>
+          <button onClick={addLine} style={{fontSize:12,color:C.teal,background:"none",border:`1px dashed ${C.teal}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",marginBottom:14}}>+ Add Line</button>
+          <div style={{textAlign:"right",fontSize:13,color:C.textMid,marginBottom:20}}>
+            Subtotal: <b>${subtotal.toFixed(2)}</b> &nbsp;|&nbsp; VAT: <b>${tax.toFixed(2)}</b> &nbsp;|&nbsp; Total: <b style={{color:C.text,fontSize:15}}>${(subtotal+tax).toFixed(2)}</b>
+          </div>
+          <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
+            <button onClick={()=>setModal(null)} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} disabled={saving} style={{padding:"9px 22px",borderRadius:8,background:C.teal,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>{saving?"Saving...":"Save"}</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SIDEBAR NAV CONFIG
 ═══════════════════════════════════════════════════════════════ */
 const NAV_TOP = [
@@ -2185,6 +3242,14 @@ export default function App() {
       case "bills":             return <Bills     token={token}/>;
       case "coa":               return <ChartOfAccounts token={token}/>;
       case "gl":                return <GeneralLedger   token={token}/>;
+      case "quotes":            return <Quotes          token={token}/>;
+      case "sales-orders":      return <SalesOrders     token={token}/>;
+      case "payment-received":  return <PaymentReceived token={token}/>;
+      case "credit-note":       return <CreditNote      token={token}/>;
+      case "expenses":          return <Expenses        token={token}/>;
+      case "purchase-orders":   return <PurchaseOrders  token={token}/>;
+      case "payment-made":      return <PaymentMade     token={token}/>;
+      case "vendor-credit":     return <VendorCredit    token={token}/>;
       case "banking":           return <Banking/>;
       case "inventory":         return <Inventory/>;
       case "vat":               return <VAT/>;

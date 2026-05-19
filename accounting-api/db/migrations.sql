@@ -252,6 +252,149 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   expires_at TIMESTAMPTZ
 );
 
+-- Quotes
+CREATE TABLE IF NOT EXISTS quotes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id),
+  number VARCHAR(50) NOT NULL,
+  date DATE NOT NULL,
+  expiry_date DATE,
+  subtotal NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','accepted','rejected','expired','converted')),
+  notes TEXT,
+  terms TEXT,
+  converted_invoice_id UUID REFERENCES invoices(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(company_id, number)
+);
+
+CREATE TABLE IF NOT EXISTS quote_lines (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  quote_id UUID NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  quantity NUMERIC(12,4) NOT NULL DEFAULT 1,
+  unit_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0
+);
+
+-- Sales Orders
+CREATE TABLE IF NOT EXISTS sales_orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id),
+  number VARCHAR(50) NOT NULL,
+  order_date DATE NOT NULL,
+  delivery_date DATE,
+  shipping_address TEXT,
+  subtotal NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','confirmed','shipped','delivered','cancelled','converted')),
+  notes TEXT,
+  converted_invoice_id UUID REFERENCES invoices(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(company_id, number)
+);
+
+CREATE TABLE IF NOT EXISTS sales_order_lines (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sales_order_id UUID NOT NULL REFERENCES sales_orders(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  quantity NUMERIC(12,4) NOT NULL DEFAULT 1,
+  unit_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0
+);
+
+-- Purchase Orders
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  vendor_id UUID NOT NULL REFERENCES vendors(id),
+  number VARCHAR(50) NOT NULL,
+  order_date DATE NOT NULL,
+  delivery_date DATE,
+  delivery_address TEXT,
+  subtotal NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','received','cancelled','converted')),
+  notes TEXT,
+  converted_bill_id UUID REFERENCES bills(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(company_id, number)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_order_lines (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  purchase_order_id UUID NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  quantity NUMERIC(12,4) NOT NULL DEFAULT 1,
+  unit_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0
+);
+
+-- Credit Notes
+CREATE TABLE IF NOT EXISTS credit_notes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id),
+  invoice_id UUID REFERENCES invoices(id),
+  number VARCHAR(50) NOT NULL,
+  date DATE NOT NULL,
+  reason TEXT,
+  subtotal NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total NUMERIC(15,2) NOT NULL DEFAULT 0,
+  applied_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','applied','void')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(company_id, number)
+);
+
+CREATE TABLE IF NOT EXISTS credit_note_lines (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  credit_note_id UUID NOT NULL REFERENCES credit_notes(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  quantity NUMERIC(12,4) NOT NULL DEFAULT 1,
+  unit_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0
+);
+
+-- Vendor Credits
+CREATE TABLE IF NOT EXISTS vendor_credits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  vendor_id UUID NOT NULL REFERENCES vendors(id),
+  bill_id UUID REFERENCES bills(id),
+  number VARCHAR(50) NOT NULL,
+  date DATE NOT NULL,
+  reason TEXT,
+  subtotal NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  total NUMERIC(15,2) NOT NULL DEFAULT 0,
+  applied_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','applied','void')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(company_id, number)
+);
+
+CREATE TABLE IF NOT EXISTS vendor_credit_lines (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  vendor_credit_id UUID NOT NULL REFERENCES vendor_credits(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  quantity NUMERIC(12,4) NOT NULL DEFAULT 1,
+  unit_price NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -264,3 +407,9 @@ CREATE INDEX IF NOT EXISTS idx_bills_company ON bills(company_id);
 CREATE INDEX IF NOT EXISTS idx_payments_company ON payments(company_id);
 CREATE INDEX IF NOT EXISTS idx_bank_transactions_account ON bank_transactions(bank_account_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_company ON audit_logs(company_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_company ON quotes(company_id);
+CREATE INDEX IF NOT EXISTS idx_sales_orders_company ON sales_orders(company_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_company ON purchase_orders(company_id);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_company ON credit_notes(company_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_credits_company ON vendor_credits(company_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_company ON expenses(company_id);
