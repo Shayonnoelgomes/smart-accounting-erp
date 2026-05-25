@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
+import Head from "next/head";
 
 const B = {
   bg:           "#0A0A0A",
@@ -19,7 +20,6 @@ const B = {
   errorText:    "#EF4444",
 };
 const sans = "'DM Sans','Segoe UI',system-ui,sans-serif";
-const mono = "'IBM Plex Mono','Fira Code',monospace";
 const API  = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 function Field({ label, type="text", value, onChange, placeholder, autoComplete, hint }) {
@@ -35,7 +35,7 @@ function Field({ label, type="text", value, onChange, placeholder, autoComplete,
         style={{
           width:"100%", background:B.raised,
           border:`1.5px solid ${focused ? B.orange : B.border}`,
-          boxShadow: focused ? `0 0 0 3px rgba(249,115,22,0.15)` : "none",
+          boxShadow: focused ? "0 0 0 3px rgba(249,115,22,0.15)" : "none",
           borderRadius:10, padding:"11px 14px", color:B.text, fontSize:14,
           outline:"none", boxSizing:"border-box", fontFamily:sans,
           transition:"border-color 0.15s, box-shadow 0.15s",
@@ -107,172 +107,168 @@ export default function Register() {
   };
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", fontFamily:sans, background:B.bg }}>
+    <>
+      <Head><title>Create Account | SNG Books</title></Head>
+      <div style={{ display:"flex", minHeight:"100vh", fontFamily:sans, background:B.bg }}>
 
-      {/* ── LEFT PANEL ── */}
-      <div style={{
-        display:"flex", flexDirection:"column", justifyContent:"space-between",
-        width:"40%", minHeight:"100vh", padding:"48px 44px",
-        background:"#111111",
-        borderRight:`1px solid ${B.border}`,
-        position:"relative", overflow:"hidden",
-      }}>
-        <div style={{ position:"absolute", top:-60, right:-60, width:280, height:280,
-          borderRadius:"50%", background:"rgba(249,115,22,0.06)", pointerEvents:"none" }}/>
-        <div style={{ position:"absolute", bottom:-80, left:-40, width:320, height:320,
-          borderRadius:"50%", background:"rgba(249,115,22,0.04)", pointerEvents:"none" }}/>
+        {/* ── LEFT PANEL ── */}
+        <div style={{
+          display:"flex", flexDirection:"column", justifyContent:"space-between",
+          width:"40%", minHeight:"100vh", padding:"48px 44px",
+          background:"#111111",
+          borderRight:`1px solid ${B.border}`,
+          position:"relative", overflow:"hidden",
+        }}>
+          <div style={{ position:"absolute", top:-60, right:-60, width:280, height:280,
+            borderRadius:"50%", background:"rgba(249,115,22,0.06)", pointerEvents:"none" }}/>
+          <div style={{ position:"absolute", bottom:-80, left:-40, width:320, height:320,
+            borderRadius:"50%", background:"rgba(249,115,22,0.04)", pointerEvents:"none" }}/>
 
-        {/* Logo */}
-        <div style={{ position:"relative", zIndex:1 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{
-              width:40, height:40, borderRadius:10, background:"#F97316",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:18, fontWeight:900, color:"#fff", fontFamily:mono,
-            }}>S</div>
-            <div>
-              <div style={{ fontSize:16, fontWeight:800, color:"#FFFFFF", letterSpacing:"-0.01em" }}>SmartAccounting</div>
-              <div style={{ fontSize:10, color:"#F97316", letterSpacing:"0.08em" }}>ERP · v2.0</div>
-            </div>
+          {/* Logo */}
+          <div style={{ position:"relative", zIndex:1 }}>
+            <img src="/logo.png" style={{
+              width:180, height:"auto", display:"block",
+              background:"#FFFFFF", padding:"12px 16px", borderRadius:"12px",
+            }} alt="SNG Books"/>
           </div>
-        </div>
 
-        {/* Middle */}
-        <div style={{ position:"relative", zIndex:1 }}>
-          <h2 style={{ margin:"0 0 12px", fontSize:28, fontWeight:800, color:"#FFFFFF",
-            lineHeight:1.25, letterSpacing:"-0.02em" }}>
-            Start your free<br/>account today.
-          </h2>
-          <p style={{ margin:"0 0 36px", fontSize:14, color:B.textMid, lineHeight:1.65 }}>
-            Join thousands of businesses managing their finances smarter with SmartAccounting ERP.
-          </p>
-          {[
-            "Free 30-day trial, no credit card required",
-            "Set up in under 5 minutes",
-            "Invite your team and accountant",
-            "Export reports anytime",
-          ].map(item=>(
-            <div key={item} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:13 }}>
-              <div style={{ width:20, height:20, borderRadius:"50%", background:"rgba(249,115,22,0.2)",
-                border:"1px solid rgba(249,115,22,0.4)",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:10, color:"#F97316", flexShrink:0 }}>✓</div>
-              <span style={{ fontSize:13, color:B.textMid }}>{item}</span>
-            </div>
-          ))}
-        </div>
+          {/* Middle */}
+          <div style={{ position:"relative", zIndex:1 }}>
+            <h2 style={{ margin:"0 0 12px", fontSize:28, fontWeight:800, color:"#FFFFFF",
+              lineHeight:1.25, letterSpacing:"-0.02em" }}>
+              Start your free<br/>account today.
+            </h2>
+            <p style={{ margin:"0 0 36px", fontSize:14, color:B.textMid, lineHeight:1.65 }}>
+              Join thousands of businesses managing their finances smarter with SNG Books.
+            </p>
+            {[
+              "Free 30-day trial, no credit card required",
+              "Set up in under 5 minutes",
+              "Invite your team and accountant",
+              "Export reports anytime",
+            ].map(item=>(
+              <div key={item} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:13 }}>
+                <div style={{ width:20, height:20, borderRadius:"50%", background:"rgba(249,115,22,0.2)",
+                  border:"1px solid rgba(249,115,22,0.4)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:10, color:"#F97316", flexShrink:0 }}>✓</div>
+                <span style={{ fontSize:13, color:B.textMid }}>{item}</span>
+              </div>
+            ))}
+          </div>
 
-        <div style={{ position:"relative", zIndex:1 }}>
-          <p style={{ margin:0, fontSize:12, color:B.textDim }}>
-            © 2025 SmartAccounting ERP · Secure · SOC 2 Compliant
-          </p>
-        </div>
-      </div>
-
-      {/* ── RIGHT PANEL ── */}
-      <div style={{
-        flex:1, display:"flex", alignItems:"center", justifyContent:"center",
-        background:B.bg, padding:"40px 32px", overflowY:"auto",
-      }}>
-        <div style={{ width:"100%", maxWidth:420 }}>
-
-          <div style={{ marginBottom:28 }}>
-            <h1 style={{ margin:"0 0 8px", fontSize:24, fontWeight:800, color:B.text, letterSpacing:"-0.02em" }}>
-              Create your account
-            </h1>
-            <p style={{ margin:0, fontSize:14, color:B.textMid }}>
-              Set up your company workspace in minutes
+          <div style={{ position:"relative", zIndex:1 }}>
+            <p style={{ margin:0, fontSize:12, color:B.textDim }}>
+              © 2025 SNG Books · Secure · SOC 2 Compliant
             </p>
           </div>
+        </div>
 
-          <div style={{
-            background:B.surface, borderRadius:16, padding:"30px",
-            border:`1px solid ${B.border}`,
-            boxShadow:"0 4px 24px rgba(0,0,0,0.4)",
-          }}>
-            {success ? (
-              <div style={{ textAlign:"center", padding:"20px 0" }}>
-                <div style={{
-                  width:60, height:60, borderRadius:"50%",
-                  background:B.successBg, border:`2px solid ${B.successBorder}`,
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  margin:"0 auto 16px", fontSize:24, color:B.success,
-                }}>✓</div>
-                <div style={{ fontSize:17, fontWeight:700, color:B.text, marginBottom:8 }}>
-                  Account created!
-                </div>
-                <div style={{ fontSize:13, color:B.textMid }}>
-                  Redirecting you to sign in…
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleRegister} style={{ display:"flex", flexDirection:"column", gap:18 }}>
-                <Field label="Company Name" value={form.company_name} onChange={f("company_name")}
-                  placeholder="Acme Corp Ltd" autoComplete="organization"/>
+        {/* ── RIGHT PANEL ── */}
+        <div style={{
+          flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+          background:B.bg, padding:"40px 32px", overflowY:"auto",
+        }}>
+          <div style={{ width:"100%", maxWidth:420 }}>
 
-                <Field label="Your Full Name" value={form.name} onChange={f("name")}
-                  placeholder="John Smith" autoComplete="name"/>
+            <div style={{ marginBottom:28 }}>
+              <h1 style={{ margin:"0 0 8px", fontSize:24, fontWeight:800, color:B.text, letterSpacing:"-0.02em" }}>
+                Create your account
+              </h1>
+              <p style={{ margin:0, fontSize:14, color:B.textMid }}>
+                Set up your company workspace in minutes
+              </p>
+            </div>
 
-                <Field label="Work Email" type="email" value={form.email} onChange={f("email")}
-                  placeholder="john@acmecorp.com" autoComplete="email"/>
-
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-                  <div>
-                    <Field label="Password" type="password" value={form.password} onChange={f("password")}
-                      placeholder="Min. 8 characters" autoComplete="new-password"/>
-                    <StrengthBar password={form.password}/>
-                  </div>
-                  <Field label="Confirm Password" type="password" value={form.confirm} onChange={f("confirm")}
-                    placeholder="Repeat password" autoComplete="new-password"/>
-                </div>
-
-                {error && (
+            <div style={{
+              background:B.surface, borderRadius:16, padding:"30px",
+              border:`1px solid ${B.border}`,
+              boxShadow:"0 4px 24px rgba(0,0,0,0.4)",
+            }}>
+              {success ? (
+                <div style={{ textAlign:"center", padding:"20px 0" }}>
                   <div style={{
-                    background:B.errorBg, border:`1px solid ${B.errorBorder}`,
-                    borderRadius:9, padding:"11px 14px",
-                    fontSize:13, color:B.errorText,
-                    display:"flex", alignItems:"center", gap:8,
-                  }}>
-                    <span>⚠</span> {error}
+                    width:60, height:60, borderRadius:"50%",
+                    background:B.successBg, border:`2px solid ${B.successBorder}`,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    margin:"0 auto 16px", fontSize:24, color:B.success,
+                  }}>✓</div>
+                  <div style={{ fontSize:17, fontWeight:700, color:B.text, marginBottom:8 }}>
+                    Account created!
                   </div>
-                )}
+                  <div style={{ fontSize:13, color:B.textMid }}>
+                    Redirecting you to sign in…
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleRegister} style={{ display:"flex", flexDirection:"column", gap:18 }}>
+                  <Field label="Company Name" value={form.company_name} onChange={f("company_name")}
+                    placeholder="Acme Corp Ltd" autoComplete="organization"/>
 
-                <button
-                  type="submit" disabled={loading}
-                  style={{
-                    width:"100%", padding:"13px", borderRadius:10, border:"none",
-                    background: loading ? `rgba(249,115,22,0.5)` : B.orange,
-                    color:"#fff", fontWeight:700, fontSize:14,
-                    cursor:loading?"not-allowed":"pointer", fontFamily:sans,
-                    boxShadow: loading ? "none" : `0 4px 14px rgba(249,115,22,0.4)`,
-                    transition:"all 0.15s",
-                  }}
-                  onMouseEnter={e=>{ if(!loading) e.target.style.background=B.orangeDk; }}
-                  onMouseLeave={e=>{ if(!loading) e.target.style.background=B.orange; }}
-                >
-                  {loading ? "Creating account…" : "Create account →"}
-                </button>
+                  <Field label="Your Full Name" value={form.name} onChange={f("name")}
+                    placeholder="John Smith" autoComplete="name"/>
 
-                <p style={{ margin:0, fontSize:12, color:B.textMid, textAlign:"center" }}>
-                  By creating an account you agree to our{" "}
-                  <span style={{ color:B.orange, cursor:"pointer" }}>Terms of Service</span>
-                  {" "}and{" "}
-                  <span style={{ color:B.orange, cursor:"pointer" }}>Privacy Policy</span>.
-                </p>
-              </form>
-            )}
+                  <Field label="Work Email" type="email" value={form.email} onChange={f("email")}
+                    placeholder="john@acmecorp.com" autoComplete="email"/>
+
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+                    <div>
+                      <Field label="Password" type="password" value={form.password} onChange={f("password")}
+                        placeholder="Min. 8 characters" autoComplete="new-password"/>
+                      <StrengthBar password={form.password}/>
+                    </div>
+                    <Field label="Confirm Password" type="password" value={form.confirm} onChange={f("confirm")}
+                      placeholder="Repeat password" autoComplete="new-password"/>
+                  </div>
+
+                  {error && (
+                    <div style={{
+                      background:B.errorBg, border:`1px solid ${B.errorBorder}`,
+                      borderRadius:9, padding:"11px 14px",
+                      fontSize:13, color:B.errorText,
+                      display:"flex", alignItems:"center", gap:8,
+                    }}>
+                      <span>⚠</span> {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit" disabled={loading}
+                    style={{
+                      width:"100%", padding:"13px", borderRadius:10, border:"none",
+                      background: loading ? "rgba(249,115,22,0.5)" : B.orange,
+                      color:"#fff", fontWeight:700, fontSize:14,
+                      cursor:loading?"not-allowed":"pointer", fontFamily:sans,
+                      boxShadow: loading ? "none" : "0 4px 14px rgba(249,115,22,0.4)",
+                      transition:"all 0.15s",
+                    }}
+                    onMouseEnter={e=>{ if(!loading) e.target.style.background=B.orangeDk; }}
+                    onMouseLeave={e=>{ if(!loading) e.target.style.background=B.orange; }}
+                  >
+                    {loading ? "Creating account…" : "Create account →"}
+                  </button>
+
+                  <p style={{ margin:0, fontSize:12, color:B.textMid, textAlign:"center" }}>
+                    By creating an account you agree to our{" "}
+                    <span style={{ color:B.orange, cursor:"pointer" }}>Terms of Service</span>
+                    {" "}and{" "}
+                    <span style={{ color:B.orange, cursor:"pointer" }}>Privacy Policy</span>.
+                  </p>
+                </form>
+              )}
+            </div>
+
+            <p style={{ textAlign:"center", marginTop:22, fontSize:13, color:B.textMid }}>
+              Already have an account?{" "}
+              <span onClick={()=>router.push("/login")}
+                style={{ color:B.orange, cursor:"pointer", fontWeight:600,
+                  textDecoration:"underline", textUnderlineOffset:3 }}>
+                Sign in
+              </span>
+            </p>
           </div>
-
-          <p style={{ textAlign:"center", marginTop:22, fontSize:13, color:B.textMid }}>
-            Already have an account?{" "}
-            <span onClick={()=>router.push("/login")}
-              style={{ color:B.orange, cursor:"pointer", fontWeight:600,
-                textDecoration:"underline", textUnderlineOffset:3 }}>
-              Sign in
-            </span>
-          </p>
         </div>
       </div>
-    </div>
+    </>
   );
 }

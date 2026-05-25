@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
+import Head from "next/head";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 import {
@@ -195,7 +196,7 @@ const Pill = ({ status }) => {
     "Debit":           { bg:`${C.rose}20`,    color:C.rose },
   };
   const s = map[status] || { bg:C.border, color:C.textMid };
-  return <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase",
+  return <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.07em", textTransform:"uppercase",
     padding:"3px 9px", borderRadius:20, background:s.bg, color:s.color, whiteSpace:"nowrap" }}>{status}</span>;
 };
 
@@ -209,8 +210,8 @@ const Card = ({ children, style={} }) => (
 const SHead = ({ children, action, sub }) => (
   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
     <div>
-      <div style={{ fontSize:11, fontWeight:700, color:C.text, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:font }}>{children}</div>
-      {sub && <div style={{ fontSize:11, color:C.textMid, marginTop:3 }}>{sub}</div>}
+      <div style={{ fontSize:14, fontWeight:700, color:C.text, letterSpacing:"0.05em", textTransform:"uppercase", fontFamily:font }}>{children}</div>
+      {sub && <div style={{ fontSize:12, color:C.textMid, marginTop:3 }}>{sub}</div>}
     </div>
     {action && <button onClick={action.fn} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`,
       border:`1px solid ${C.teal}40`, borderRadius:8, padding:"5px 12px", cursor:"pointer", fontWeight:700 }}>{action.label}</button>}
@@ -220,7 +221,7 @@ const SHead = ({ children, action, sub }) => (
 const Btn = ({ children, onClick, variant="primary", style={} }) => {
   const base = {
     padding:"9px 18px", borderRadius:9, border:"none", cursor:"pointer",
-    fontSize:12, fontWeight:700, fontFamily:sansFont, transition:"opacity 0.15s", ...style
+    fontSize:13, fontWeight:700, fontFamily:sansFont, transition:"opacity 0.15s", ...style
   };
   const variants = {
     primary: { background:"#F97316", color:"#FFFFFF", boxShadow:"0 2px 8px rgba(249,115,22,0.25)" },
@@ -231,12 +232,12 @@ const Btn = ({ children, onClick, variant="primary", style={} }) => {
 };
 
 const TH = ({ children }) => (
-  <th style={{ fontSize:10, fontWeight:700, color:C.textMid, letterSpacing:"0.08em",
+  <th style={{ fontSize:12, fontWeight:700, color:C.textMid, letterSpacing:"0.06em",
     textTransform:"uppercase", padding:"10px 14px", textAlign:"left",
     background:C.surfaceB, borderBottom:`1px solid ${C.border}`, fontFamily:font }}>{children}</th>
 );
 const TD = ({ children, style={} }) => (
-  <td style={{ padding:"11px 14px", fontSize:12, color:C.text,
+  <td style={{ padding:"11px 14px", fontSize:13, color:C.text,
     borderBottom:`1px solid ${C.border}`, ...style }}>{children}</td>
 );
 
@@ -256,7 +257,7 @@ function Modal({ open, onClose, title, children, width=560 }) {
         borderRadius:16, boxShadow:"0 20px 60px rgba(0,0,0,0.15)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
           padding:"18px 22px", borderBottom:`1px solid ${C.border}` }}>
-          <span style={{ fontSize:14, fontWeight:700, color:C.text, fontFamily:font }}>{title}</span>
+          <span style={{ fontSize:16, fontWeight:700, color:C.text, fontFamily:font }}>{title}</span>
           <button onClick={onClose} style={{ background:"none", border:"none", color:C.textMid,
             fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
         </div>
@@ -271,22 +272,22 @@ function Modal({ open, onClose, title, children, width=560 }) {
 ═══════════════════════════════════════════════════════════════ */
 const Input = ({ label, value, onChange, type="text", placeholder="" }) => (
   <div style={{ marginBottom:14 }}>
-    <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid,
-      letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>{label}</label>
+    <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid,
+      letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:6 }}>{label}</label>
     <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
       style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8,
-        padding:"9px 12px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box",
+        padding:"9px 12px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box",
         fontFamily:sansFont }} />
   </div>
 );
 
 const Select = ({ label, value, onChange, options }) => (
   <div style={{ marginBottom:14 }}>
-    <label style={{ display:"block", fontSize:10, fontWeight:700, color:C.textMid,
-      letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>{label}</label>
+    <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.textMid,
+      letterSpacing:"0.06em", textTransform:"uppercase", marginBottom:6 }}>{label}</label>
     <select value={value} onChange={e=>onChange(e.target.value)}
       style={{ width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8,
-        padding:"9px 12px", color:C.text, fontSize:12, outline:"none", boxSizing:"border-box" }}>
+        padding:"9px 12px", color:C.text, fontSize:13, outline:"none", boxSizing:"border-box" }}>
       {options.map(o=><option key={o} value={o}>{o}</option>)}
     </select>
   </div>
@@ -363,32 +364,32 @@ function Dashboard({ token }) {
       {/* KPIs */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
         {kpis.map((k,i)=>(
-          <Card key={i} style={{ position:"relative", overflow:"hidden", cursor:"default" }}>
+          <Card key={i} style={{ position:"relative", overflow:"hidden", cursor:"default", padding:"22px 24px" }}>
             <div style={{ position:"absolute", top:-20, right:-20, width:90, height:90,
               borderRadius:"50%", background:k.color, opacity:0.12, filter:"blur(20px)" }}/>
-            <div style={{ fontSize:10, color:C.textMid, letterSpacing:"0.08em", textTransform:"uppercase",
+            <div style={{ fontSize:13, color:"#A3A3A3", letterSpacing:"0.08em", textTransform:"uppercase",
               fontWeight:700, marginBottom:10, fontFamily:font }}>{k.label}</div>
-            <div style={{ fontSize:10, color:C.textDim, marginBottom:2 }}>AED</div>
-            <div style={{ fontSize:24, fontWeight:800, color:C.text, letterSpacing:"-0.03em",
+            <div style={{ fontSize:12, color:"#525252", marginBottom:2 }}>AED</div>
+            <div style={{ fontSize:32, fontWeight:800, color:"#FFFFFF", letterSpacing:"-0.03em",
               fontFamily:font }}>{k.value.toLocaleString()}</div>
             <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20,
+              <span style={{ fontSize:12, fontWeight:700, padding:"2px 7px", borderRadius:20,
                 color: k.trend>0?C.emerald:k.trend<0?C.rose:C.textMid,
                 background: k.trend>0?`${C.emerald}18`:k.trend<0?`${C.rose}18`:C.border }}>
                 {k.icon} {Math.abs(k.trend)}%
               </span>
-              <span style={{ fontSize:10, color:C.textDim }}>vs last month</span>
+              <span style={{ fontSize:11, color:C.textDim }}>vs last month</span>
             </div>
           </Card>
         ))}
       </div>
 
       {/* Charts row */}
-      <div style={{ display:"grid", gridTemplateColumns:"1.8fr 1fr", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1.8fr 1fr", gap:20 }}>
         <Card>
           <SHead>Cash Flow Trend</SHead>
           {cfChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={210}>
+            <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={cfChartData}>
                 <defs>
                   <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
@@ -401,31 +402,32 @@ function Dashboard({ token }) {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.border}/>
-                <XAxis dataKey="w" tick={{fill:C.textDim,fontSize:10}} axisLine={false} tickLine={false}/>
-                <YAxis tickFormatter={v=>`${v/1000}K`} tick={{fill:C.textDim,fontSize:9}} axisLine={false} tickLine={false} width={38}/>
-                <Tooltip contentStyle={{background:C.surfaceB,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}
+                <XAxis dataKey="w" tick={{fill:C.textDim,fontSize:12}} axisLine={false} tickLine={false}/>
+                <YAxis tickFormatter={v=>`${v/1000}K`} tick={{fill:C.textDim,fontSize:11}} axisLine={false} tickLine={false} width={42}/>
+                <Tooltip contentStyle={{background:C.surfaceB,border:`1px solid ${C.border}`,borderRadius:8,fontSize:12}}
                   labelStyle={{color:C.text}} formatter={v=>[`AED ${v.toLocaleString()}`,""]}/>
                 <Area type="monotone" dataKey="in" stroke={C.teal} strokeWidth={2} fill="url(#gRev)" name="Inflow"/>
                 <Area type="monotone" dataKey="out" stroke={C.rose} strokeWidth={2} fill="url(#gExp)" name="Outflow"/>
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{height:210,display:"flex",alignItems:"center",justifyContent:"center",color:C.textDim,fontSize:13}}>
-              No cash flow data yet
+            <div style={{height:240,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
+              <span style={{fontSize:28,opacity:0.3}}>📈</span>
+              <span style={{color:"#525252",fontSize:14}}>No cash flow data yet</span>
             </div>
           )}
-          <div style={{ display:"flex", gap:18, marginTop:6 }}>
+          <div style={{ display:"flex", gap:18, marginTop:8 }}>
             {[["Inflow",C.teal],["Outflow",C.rose]].map(([l,c])=>(
               <div key={l} style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <div style={{ width:8,height:8,borderRadius:2,background:c }}/>
-                <span style={{ fontSize:10, color:C.textMid }}>{l}</span>
+                <span style={{ fontSize:12, color:C.textMid }}>{l}</span>
               </div>
             ))}
           </div>
         </Card>
         <Card>
           <SHead>Financial Summary</SHead>
-          <div style={{ display:"flex", flexDirection:"column", gap:12, marginTop:8 }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:8 }}>
             {[
               { l:"Total Revenue",  v:s.revenue||0,   c:C.teal },
               { l:"Total Expenses", v:s.expenses||0,  c:C.rose },
@@ -434,31 +436,36 @@ function Dashboard({ token }) {
               { l:"Payables",       v:s.apBalance||0, c:C.amber },
             ].map(item=>(
               <div key={item.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                padding:"8px 12px",borderRadius:8,background:C.raised}}>
+                padding:"12px 16px",borderRadius:8,background:C.raised}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <div style={{width:8,height:8,borderRadius:2,background:item.c}}/>
-                  <span style={{fontSize:12,color:C.textMid}}>{item.l}</span>
+                  <span style={{fontSize:13,color:C.textMid}}>{item.l}</span>
                 </div>
-                <span style={{fontSize:12,fontWeight:700,color:item.c,fontFamily:font}}>
+                <span style={{fontSize:13,fontWeight:700,color:item.c,fontFamily:font}}>
                   AED {item.v.toLocaleString()}
                 </span>
               </div>
             ))}
-            {!s.revenue && <div style={{textAlign:"center",fontSize:11,color:C.textDim,paddingTop:4}}>No transactions yet</div>}
+            {!s.revenue && (
+              <div style={{textAlign:"center",paddingTop:8,display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+                <span style={{fontSize:24,opacity:0.3}}>💰</span>
+                <span style={{fontSize:14,color:"#525252"}}>No transactions yet</span>
+              </div>
+            )}
           </div>
         </Card>
       </div>
 
       {/* Cash flow + alerts */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
         <Card>
           <SHead>Cash Flow (Weekly)</SHead>
-          <ResponsiveContainer width="100%" height={190}>
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={cfChartData} barGap={3}>
               <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
-              <XAxis dataKey="w" tick={{fill:C.textDim,fontSize:10}} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v=>`${v/1000}K`} tick={{fill:C.textDim,fontSize:9}} axisLine={false} tickLine={false} width={34}/>
-              <Tooltip contentStyle={{background:C.surfaceB,border:`1px solid ${C.border}`,borderRadius:8,fontSize:11}}
+              <XAxis dataKey="w" tick={{fill:C.textDim,fontSize:12}} axisLine={false} tickLine={false}/>
+              <YAxis tickFormatter={v=>`${v/1000}K`} tick={{fill:C.textDim,fontSize:11}} axisLine={false} tickLine={false} width={38}/>
+              <Tooltip contentStyle={{background:C.surfaceB,border:`1px solid ${C.border}`,borderRadius:8,fontSize:12}}
                 formatter={v=>[`AED ${v.toLocaleString()}`,""]}/>
               <Bar dataKey="in" fill={C.teal} radius={[4,4,0,0]} name="Inflow"/>
               <Bar dataKey="out" fill={`${C.rose}90`} radius={[4,4,0,0]} name="Outflow"/>
@@ -470,12 +477,12 @@ function Dashboard({ token }) {
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
             {alertItems.map((a,i)=>(
               <div key={i} style={{ display:"flex", alignItems:"center", gap:12,
-                padding:"10px 14px", borderRadius:10,
+                padding:"12px 16px", borderRadius:10,
                 background:a.bg, border:`1px solid ${a.bc}`, cursor:"pointer" }}>
-                <span style={{ fontSize:15, color:a.c }}>{a.i}</span>
+                <span style={{ fontSize:16, color:a.c }}>{a.i}</span>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:C.text }}>{a.t}</div>
-                  <div style={{ fontSize:10, color:C.textMid }}>{a.d}</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{a.t}</div>
+                  <div style={{ fontSize:11, color:C.textMid }}>{a.d}</div>
                 </div>
                 <span style={{ color:C.textDim }}>›</span>
               </div>
@@ -3398,9 +3405,12 @@ export default function App() {
   const [expandPurchases, setExpandPurchases] = useState(true);
 
   if (!ready) return (
-    <div style={{ height:"100vh", background:"#0A0A0A", display:"flex", alignItems:"center",
-      justifyContent:"center", fontFamily:sansFont, color:"#A3A3A3", fontSize:13 }}>
-      Loading…
+    <div style={{ height:"100vh", background:"#0A0A0A", display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center", fontFamily:sansFont, gap:20 }}>
+      <div style={{ background:"#FFFFFF", borderRadius:12, padding:"12px 20px" }}>
+        <img src="/logo.png" alt="SNG Books" style={{ width:160, height:"auto", display:"block" }}/>
+      </div>
+      <span style={{ color:"#A3A3A3", fontSize:13 }}>Loading…</span>
     </div>
   );
 
@@ -3451,7 +3461,11 @@ export default function App() {
     }
   };
 
+  const pageTitle = `${pageLabels[page] || "Dashboard"} | SNG Books`;
+
   return (
+    <>
+    <Head><title>{pageTitle}</title></Head>
     <div style={{ display:"flex", height:"100vh", width:"100%",
       background:"#0A0A0A", fontFamily:sansFont, color:C.text, overflow:"hidden" }}>
 
@@ -3462,18 +3476,21 @@ export default function App() {
         transition:"width 0.2s", overflow:"hidden" }}>
 
         {/* Logo */}
-        <div style={{ padding:collapsed?"18px 0":"16px 18px",
+        <div style={{ padding:collapsed?"12px 0":"14px 16px",
           borderBottom:"1px solid rgba(255,255,255,0.1)",
-          display:"flex", alignItems:"center", gap:10,
+          display:"flex", alignItems:"center",
           justifyContent:collapsed?"center":"flex-start" }}>
-          <div style={{ width:32, height:32, borderRadius:8, flexShrink:0,
-            background:"#F97316", border:"none",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            fontSize:15, fontWeight:900, color:"#fff", fontFamily:font }}>S</div>
-          {!collapsed && (
-            <div>
-              <div style={{ fontSize:12, fontWeight:800, color:"#fff", letterSpacing:"-0.01em" }}>SmartAccounting</div>
-              <div style={{ fontSize:9, color:"rgba(255,255,255,0.55)", fontWeight:600, letterSpacing:"0.06em" }}>ERP · v2.0</div>
+          {collapsed ? (
+            <img src="/logo.png" alt="SNG" style={{
+              width:36, height:36, objectFit:"cover", objectPosition:"left center",
+              borderRadius:8, background:"#FFFFFF", padding:4,
+            }}/>
+          ) : (
+            <div style={{ background:"#FFFFFF", borderRadius:10, padding:"8px 12px", display:"inline-block" }}>
+              <img src="/logo.png" alt="SNG Books" style={{
+                width:150, height:"auto", objectFit:"contain",
+                filter:"brightness(1.1)", display:"block",
+              }}/>
             </div>
           )}
         </div>
@@ -3483,16 +3500,11 @@ export default function App() {
           <div style={{ padding:"12px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
             <div style={{
               width:"100%", background:"#1A1A1A", border:"1px solid #2A2A2A",
-              borderRadius:9, padding:"8px 10px",
-              display:"flex", alignItems:"center", gap:8, color:"#fff" }}>
-              <div style={{ width:22, height:22, borderRadius:5, background:"#F97316",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:9, fontWeight:900, color:"#fff", flexShrink:0 }}>
-                {companyName[0]}
-              </div>
-              <span style={{ fontSize:10, fontWeight:600, flex:1, textAlign:"left",
-                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:"rgba(255,255,255,0.9)" }}>
-                {companyName}
+              borderRadius:9, padding:"10px 12px",
+              display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:13, fontWeight:700, flex:1, textAlign:"left",
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:"#FFFFFF" }}>
+                SNG Books
               </span>
             </div>
           </div>
@@ -3517,9 +3529,9 @@ export default function App() {
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
                   width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
-                <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
+                <span style={{ fontSize:14, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && (
-                  <span style={{ fontSize:12, fontWeight:active?700:400, flex:1, textAlign:"left" }}>{item.label}</span>
+                  <span style={{ fontSize:13, fontWeight:active?700:500, flex:1, textAlign:"left" }}>{item.label}</span>
                 )}
               </button>
             );
@@ -3531,9 +3543,9 @@ export default function App() {
               width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
               padding:"10px 10px 6px", background:"none", border:"none", cursor:"pointer",
               marginTop:8 }}>
-              <span style={{ fontSize:9, fontWeight:700, color:"#F97316",
-                letterSpacing:"0.1em", textTransform:"uppercase" }}>Sales</span>
-              <span style={{ fontSize:9, color:"#F97316" }}>{expandSales?"▼":"▶"}</span>
+              <span style={{ fontSize:11, fontWeight:700, color:"#F97316",
+                letterSpacing:"0.12em", textTransform:"uppercase" }}>Sales</span>
+              <span style={{ fontSize:11, color:"#F97316" }}>{expandSales?"▼":"▶"}</span>
             </button>
           )}
           {collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"8px 4px" }}/>}
@@ -3553,9 +3565,9 @@ export default function App() {
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
                   width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
-                <span style={{ fontSize:11, flexShrink:0 }}>{item.icon}</span>
+                <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
-                  <span style={{ fontSize:11, fontWeight:active?600:400, flex:1, textAlign:"left",
+                  <span style={{ fontSize:13, fontWeight:active?700:500, flex:1, textAlign:"left",
                     color:active?"#fff":"#CBD5E1" }}>{item.label}</span>
                   {item.badge && (
                     <span style={{ fontSize:9, fontWeight:700, minWidth:16, height:16,
@@ -3575,9 +3587,9 @@ export default function App() {
               width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
               padding:"10px 10px 6px", background:"none", border:"none", cursor:"pointer",
               marginTop:8 }}>
-              <span style={{ fontSize:9, fontWeight:700, color:"#F97316",
-                letterSpacing:"0.1em", textTransform:"uppercase" }}>Purchases</span>
-              <span style={{ fontSize:9, color:"#F97316" }}>{expandPurchases?"▼":"▶"}</span>
+              <span style={{ fontSize:11, fontWeight:700, color:"#F97316",
+                letterSpacing:"0.12em", textTransform:"uppercase" }}>Purchases</span>
+              <span style={{ fontSize:11, color:"#F97316" }}>{expandPurchases?"▼":"▶"}</span>
             </button>
           )}
           {collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"4px 4px 8px" }}/>}
@@ -3597,9 +3609,9 @@ export default function App() {
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
                   width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
-                <span style={{ fontSize:11, flexShrink:0 }}>{item.icon}</span>
+                <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
-                  <span style={{ fontSize:11, fontWeight:active?600:400, flex:1, textAlign:"left",
+                  <span style={{ fontSize:13, fontWeight:active?700:500, flex:1, textAlign:"left",
                     color:active?"#fff":"#CBD5E1" }}>{item.label}</span>
                   {item.badge && (
                     <span style={{ fontSize:9, fontWeight:700, minWidth:16, height:16,
@@ -3631,9 +3643,9 @@ export default function App() {
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
                   width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
-                <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
+                <span style={{ fontSize:14, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
-                  <span style={{ fontSize:12, fontWeight:active?700:400, flex:1, textAlign:"left" }}>{item.label}</span>
+                  <span style={{ fontSize:13, fontWeight:active?700:500, flex:1, textAlign:"left" }}>{item.label}</span>
                   {item.badge && (
                     <span style={{ fontSize:9, fontWeight:700, minWidth:16, height:16,
                       background:"rgba(239,68,68,0.9)", color:"#fff", borderRadius:8,
@@ -3665,10 +3677,7 @@ export default function App() {
         <div style={{ height:56, background:"#111111", borderBottom:"1px solid #2A2A2A",
           display:"flex", alignItems:"center", padding:"0 22px", gap:14, flexShrink:0 }}>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:9, color:"#A3A3A3", letterSpacing:"0.06em", textTransform:"uppercase" }}>
-              {companyName}
-            </div>
-            <div style={{ fontSize:14, fontWeight:800, color:"#FFFFFF", fontFamily:font }}>
+            <div style={{ fontSize:16, fontWeight:800, color:"#FFFFFF", fontFamily:font }}>
               {pageLabels[page] || "Dashboard"}
             </div>
           </div>
@@ -3768,5 +3777,6 @@ export default function App() {
         </div>
       </div>
     </div>
+    </>
   );
 }
