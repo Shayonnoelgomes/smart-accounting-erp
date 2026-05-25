@@ -12,24 +12,24 @@ import {
    DESIGN SYSTEM
 ═══════════════════════════════════════════════════════════════ */
 const C = {
-  bg:       "#F8FAFC",
-  surface:  "#FFFFFF",
-  surfaceB: "#F8FAFC",
-  raised:   "#F1F5F9",
-  border:   "#E2E8F0",
-  borderHi: "#93C5FD",
-  teal:     "#00D2B4",
-  tealDim:  "#007A6A",
-  tealGlow: "rgba(0,210,180,0.08)",
-  sky:      "#38BDF8",
-  violet:   "#A78BFA",
-  amber:    "#F59E0B",
+  bg:       "#0A0A0A",
+  surface:  "#111111",
+  surfaceB: "#1A1A1A",
+  raised:   "#1A1A1A",
+  border:   "#2A2A2A",
+  borderHi: "#F97316",
+  teal:     "#F97316",
+  tealDim:  "#EA6C0A",
+  tealGlow: "rgba(249,115,22,0.08)",
+  sky:      "#6366F1",
+  violet:   "#A855F7",
+  amber:    "#F97316",
   rose:     "#EF4444",
-  emerald:  "#10B981",
-  text:     "#1E293B",
-  textMid:  "#64748B",
-  textDim:  "#94A3B8",
-  white:    "#FFFFFF",
+  emerald:  "#22C55E",
+  text:     "#FFFFFF",
+  textMid:  "#A3A3A3",
+  textDim:  "#525252",
+  white:    "#111111",
 };
 
 const font = "'IBM Plex Mono', 'Fira Code', 'Courier New', monospace";
@@ -223,7 +223,7 @@ const Btn = ({ children, onClick, variant="primary", style={} }) => {
     fontSize:12, fontWeight:700, fontFamily:sansFont, transition:"opacity 0.15s", ...style
   };
   const variants = {
-    primary: { background:"#2563EB", color:"#FFFFFF", boxShadow:"0 2px 8px rgba(37,99,235,0.25)" },
+    primary: { background:"#F97316", color:"#FFFFFF", boxShadow:"0 2px 8px rgba(249,115,22,0.25)" },
     ghost:   { background:"none", color:C.textMid, border:`1px solid ${C.border}` },
     danger:  { background:`${C.rose}10`, color:C.rose, border:`1px solid ${C.rose}30` },
   };
@@ -332,30 +332,30 @@ function Dashboard({ token }) {
 
   const alertItems = alerts ? [
     alerts.overdueInvoices?.length && {
-      c:"#EF4444", bg:"#FEF2F2", bc:"#FECACA",
+      c:"#EF4444", bg:"#2A0000", bc:"#EF4444",
       i:"⚠", t:"Overdue Invoices",
       d:`${alerts.overdueInvoices.length} invoice${alerts.overdueInvoices.length>1?"s":""} past due`,
     },
     alerts.pendingBills?.length && {
-      c:"#D97706", bg:"#FFFBEB", bc:"#FDE68A",
+      c:"#F97316", bg:"#1A0F00", bc:"#F97316",
       i:"⏳", t:"Bills Due",
       d:`${alerts.pendingBills.length} bill${alerts.pendingBills.length>1?"s":""} awaiting payment`,
     },
     alerts.vatDue?.length && {
-      c:"#7C3AED", bg:"#F5F3FF", bc:"#DDD6FE",
+      c:"#A855F7", bg:"#1A0A1A", bc:"#A855F7",
       i:"⊛", t:"VAT Return Due",
       d:`${alerts.vatDue.length} draft return${alerts.vatDue.length>1?"s":""}`,
     },
     alerts.lowInventory?.length && {
-      c:"#059669", bg:"#F0FDF4", bc:"#A7F3D0",
+      c:"#22C55E", bg:"#001A0A", bc:"#22C55E",
       i:"⊠", t:"Low Stock Alert",
       d:`${alerts.lowInventory.length} item${alerts.lowInventory.length>1?"s":""} below reorder level`,
     },
   ].filter(Boolean) : [
-    { c:"#EF4444", bg:"#FEF2F2", bc:"#FECACA", i:"⚠", t:"Overdue Invoices",   d:"No overdue invoices" },
-    { c:"#D97706", bg:"#FFFBEB", bc:"#FDE68A", i:"⏳", t:"Pending Bills",       d:"No pending bills" },
-    { c:"#2563EB", bg:"#EFF6FF", bc:"#BFDBFE", i:"⊟", t:"Bank Reconciliation", d:"Set up bank accounts" },
-    { c:"#7C3AED", bg:"#F5F3FF", bc:"#DDD6FE", i:"⊛", t:"VAT Return",          d:"No returns due" },
+    { c:"#EF4444", bg:"#2A0000", bc:"#EF4444", i:"⚠", t:"Overdue Invoices",   d:"No overdue invoices" },
+    { c:"#F97316", bg:"#1A0F00", bc:"#F97316", i:"⏳", t:"Pending Bills",       d:"No pending bills" },
+    { c:"#6366F1", bg:"#0A0A1A", bc:"#6366F1", i:"⊟", t:"Bank Reconciliation", d:"Set up bank accounts" },
+    { c:"#A855F7", bg:"#1A0A1A", bc:"#A855F7", i:"⊛", t:"VAT Return",          d:"No returns due" },
   ];
 
   return (
@@ -842,7 +842,7 @@ function ChartOfAccounts({ token }) {
                 </div></TD>
                 <TD><span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:`${typeColors[a.type]||C.textDim}18`, color:typeColors[a.type]||C.textDim }}>{a.type}</span></TD>
                 <TD><span style={{ fontFamily:font, fontWeight:700, color:parseFloat(a.balance||0)>=0?C.text:C.rose }}>{parseFloat(a.balance||0).toLocaleString()}</span></TD>
-                <TD><button onClick={()=>openEdit(a)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button></TD>
+                <TD><button onClick={()=>openEdit(a)} style={{ fontSize:11, color:"#F97316", background:"rgba(249,115,22,0.1)", border:"1px solid rgba(249,115,22,0.3)", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button></TD>
               </tr>
             ))}
           </tbody>
@@ -1805,14 +1805,14 @@ function Customers({ token }) {
             : rows.length===0 ? <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No customers yet. Add your first customer.</td></tr>
             : rows.map(row=>(
               <tr key={row.id} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <TD><span onClick={()=>openView(row)} style={{ color:"#2563EB", cursor:"pointer", fontWeight:600 }}>{row.name}</span></TD>
+                <TD><span onClick={()=>openView(row)} style={{ color:"#F97316", cursor:"pointer", fontWeight:600 }}>{row.name}</span></TD>
                 <TD style={{ color:C.textMid }}>{row.email||"—"}</TD>
                 <TD style={{ color:C.textMid }}>{row.phone||"—"}</TD>
                 <TD><span style={{ fontFamily:font }}>AED {parseFloat(row.credit_limit||0).toLocaleString()}</span></TD>
                 <TD><Pill status={row.is_active?"Active":"Inactive"}/></TD>
                 <TD><div style={{ display:"flex", gap:6 }}>
                   <button onClick={()=>openView(row)} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
-                  <button onClick={()=>openEdit(row)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button>
+                  <button onClick={()=>openEdit(row)} style={{ fontSize:11, color:"#F97316", background:"rgba(249,115,22,0.1)", border:"1px solid rgba(249,115,22,0.3)", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button>
                   <button onClick={()=>openDelete(row)} style={{ fontSize:11, color:C.rose, background:`${C.rose}10`, border:`1px solid ${C.rose}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Delete</button>
                 </div></TD>
               </tr>
@@ -1964,14 +1964,14 @@ function Suppliers({ token }) {
             : rows.length===0 ? <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:C.textDim, fontSize:12 }}>No suppliers yet.</td></tr>
             : rows.map(row=>(
               <tr key={row.id} onMouseEnter={e=>e.currentTarget.style.background=C.raised} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <TD><span onClick={()=>openView(row)} style={{ color:"#2563EB", cursor:"pointer", fontWeight:600 }}>{row.name}</span></TD>
+                <TD><span onClick={()=>openView(row)} style={{ color:"#F97316", cursor:"pointer", fontWeight:600 }}>{row.name}</span></TD>
                 <TD style={{ color:C.textMid }}>{row.email||"—"}</TD>
                 <TD style={{ color:C.textMid }}>{row.phone||"—"}</TD>
                 <TD style={{ color:C.textMid, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.address||"—"}</TD>
                 <TD><Pill status={row.is_active?"Active":"Inactive"}/></TD>
                 <TD><div style={{ display:"flex", gap:6 }}>
                   <button onClick={()=>openView(row)} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
-                  <button onClick={()=>openEdit(row)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button>
+                  <button onClick={()=>openEdit(row)} style={{ fontSize:11, color:"#F97316", background:"rgba(249,115,22,0.1)", border:"1px solid rgba(249,115,22,0.3)", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Edit</button>
                   <button onClick={()=>openDelete(row)} style={{ fontSize:11, color:C.rose, background:`${C.rose}10`, border:`1px solid ${C.rose}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Delete</button>
                 </div></TD>
               </tr>
@@ -2159,7 +2159,7 @@ function Bills({ token }) {
                 <TD><Pill status={bill.status}/></TD>
                 <TD><div style={{ display:"flex", gap:6 }}>
                   <button onClick={()=>setShowDetail(bill)} style={{ fontSize:11, color:C.teal, background:`${C.teal}15`, border:`1px solid ${C.teal}30`, borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>View</button>
-                  {bill.status==="draft" && <button onClick={()=>approveBill(bill.id)} style={{ fontSize:11, color:"#2563EB", background:"#EFF6FF", border:"1px solid #BFDBFE", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Approve</button>}
+                  {bill.status==="draft" && <button onClick={()=>approveBill(bill.id)} style={{ fontSize:11, color:"#F97316", background:"rgba(249,115,22,0.1)", border:"1px solid rgba(249,115,22,0.3)", borderRadius:6, padding:"4px 10px", cursor:"pointer" }}>Approve</button>}
                 </div></TD>
               </tr>
             ))}
@@ -3398,8 +3398,8 @@ export default function App() {
   const [expandPurchases, setExpandPurchases] = useState(true);
 
   if (!ready) return (
-    <div style={{ height:"100vh", background:"#F8FAFC", display:"flex", alignItems:"center",
-      justifyContent:"center", fontFamily:sansFont, color:"#64748B", fontSize:13 }}>
+    <div style={{ height:"100vh", background:"#0A0A0A", display:"flex", alignItems:"center",
+      justifyContent:"center", fontFamily:sansFont, color:"#A3A3A3", fontSize:13 }}>
       Loading…
     </div>
   );
@@ -3453,11 +3453,11 @@ export default function App() {
 
   return (
     <div style={{ display:"flex", height:"100vh", width:"100%",
-      background:"#F1F5F9", fontFamily:sansFont, color:C.text, overflow:"hidden" }}>
+      background:"#0A0A0A", fontFamily:sansFont, color:C.text, overflow:"hidden" }}>
 
       {/* ─── SIDEBAR ─── */}
       <div style={{ width:SW, flexShrink:0, height:"100%",
-        background:"#1E3A8A",
+        background:"#111111",
         borderRight:"none", display:"flex", flexDirection:"column",
         transition:"width 0.2s", overflow:"hidden" }}>
 
@@ -3467,7 +3467,7 @@ export default function App() {
           display:"flex", alignItems:"center", gap:10,
           justifyContent:collapsed?"center":"flex-start" }}>
           <div style={{ width:32, height:32, borderRadius:8, flexShrink:0,
-            background:"rgba(255,255,255,0.15)", border:"1px solid rgba(255,255,255,0.2)",
+            background:"#F97316", border:"none",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:15, fontWeight:900, color:"#fff", fontFamily:font }}>S</div>
           {!collapsed && (
@@ -3482,10 +3482,10 @@ export default function App() {
         {!collapsed && (
           <div style={{ padding:"12px", borderBottom:"1px solid rgba(255,255,255,0.1)" }}>
             <div style={{
-              width:"100%", background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.15)",
+              width:"100%", background:"#1A1A1A", border:"1px solid #2A2A2A",
               borderRadius:9, padding:"8px 10px",
               display:"flex", alignItems:"center", gap:8, color:"#fff" }}>
-              <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.2)",
+              <div style={{ width:22, height:22, borderRadius:5, background:"#F97316",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:9, fontWeight:900, color:"#fff", flexShrink:0 }}>
                 {companyName[0]}
@@ -3510,13 +3510,13 @@ export default function App() {
                 gap:collapsed?0:9, justifyContent:collapsed?"center":"flex-start",
                 padding:collapsed?"10px 0":"9px 10px",
                 borderRadius:9, border:"none", cursor:"pointer", marginBottom:2,
-                background:active?"#2563EB":"none",
+                background:active?"#F97316":"none",
                 color:active?"#fff":"rgba(255,255,255,0.65)", position:"relative",
                 transition:"background 0.15s" }}
-                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.08)")}
+                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(249,115,22,0.1)")}
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
-                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
+                  width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
                 <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && (
                   <span style={{ fontSize:12, fontWeight:active?700:400, flex:1, textAlign:"left" }}>{item.label}</span>
@@ -3531,9 +3531,9 @@ export default function App() {
               width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
               padding:"10px 10px 6px", background:"none", border:"none", cursor:"pointer",
               marginTop:8 }}>
-              <span style={{ fontSize:9, fontWeight:700, color:"#93C5FD",
+              <span style={{ fontSize:9, fontWeight:700, color:"#F97316",
                 letterSpacing:"0.1em", textTransform:"uppercase" }}>Sales</span>
-              <span style={{ fontSize:9, color:"#93C5FD" }}>{expandSales?"▼":"▶"}</span>
+              <span style={{ fontSize:9, color:"#F97316" }}>{expandSales?"▼":"▶"}</span>
             </button>
           )}
           {collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"8px 4px" }}/>}
@@ -3546,13 +3546,13 @@ export default function App() {
                 padding:collapsed?"9px 0":"7px 10px 7px"+(collapsed?"":" 18px"),
                 paddingLeft:collapsed?0:18,
                 borderRadius:8, border:"none", cursor:"pointer", marginBottom:1,
-                background:active?"#2563EB":"none",
+                background:active?"#F97316":"none",
                 color:active?"#fff":"rgba(255,255,255,0.6)", position:"relative",
                 transition:"background 0.15s" }}
-                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.07)")}
+                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(249,115,22,0.08)")}
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
-                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
+                  width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
                 <span style={{ fontSize:11, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
                   <span style={{ fontSize:11, fontWeight:active?600:400, flex:1, textAlign:"left",
@@ -3575,9 +3575,9 @@ export default function App() {
               width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
               padding:"10px 10px 6px", background:"none", border:"none", cursor:"pointer",
               marginTop:8 }}>
-              <span style={{ fontSize:9, fontWeight:700, color:"#93C5FD",
+              <span style={{ fontSize:9, fontWeight:700, color:"#F97316",
                 letterSpacing:"0.1em", textTransform:"uppercase" }}>Purchases</span>
-              <span style={{ fontSize:9, color:"#93C5FD" }}>{expandPurchases?"▼":"▶"}</span>
+              <span style={{ fontSize:9, color:"#F97316" }}>{expandPurchases?"▼":"▶"}</span>
             </button>
           )}
           {collapsed && <div style={{ height:1, background:"rgba(255,255,255,0.1)", margin:"4px 4px 8px" }}/>}
@@ -3590,13 +3590,13 @@ export default function App() {
                 paddingLeft:collapsed?0:18,
                 padding:collapsed?"9px 0":"7px 10px 7px 18px",
                 borderRadius:8, border:"none", cursor:"pointer", marginBottom:1,
-                background:active?"#2563EB":"none",
+                background:active?"#F97316":"none",
                 color:active?"#fff":"rgba(255,255,255,0.6)", position:"relative",
                 transition:"background 0.15s" }}
-                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.07)")}
+                onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(249,115,22,0.08)")}
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
-                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
+                  width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
                 <span style={{ fontSize:11, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
                   <span style={{ fontSize:11, fontWeight:active?600:400, flex:1, textAlign:"left",
@@ -3624,13 +3624,13 @@ export default function App() {
                 gap:collapsed?0:9, justifyContent:collapsed?"center":"flex-start",
                 padding:collapsed?"10px 0":"9px 10px",
                 borderRadius:9, border:"none", cursor:"pointer", marginBottom:2,
-                background:active?"#2563EB":"none",
+                background:active?"#F97316":"none",
                 color:active?"#fff":"rgba(255,255,255,0.65)", position:"relative",
                 transition:"background 0.15s" }}
                 onMouseEnter={e=>!active&&(e.currentTarget.style.background="rgba(255,255,255,0.08)")}
                 onMouseLeave={e=>!active&&(e.currentTarget.style.background="none")}>
                 {active && <div style={{ position:"absolute", left:0, top:"20%", height:"60%",
-                  width:3, borderRadius:"0 2px 2px 0", background:"#60A5FA" }}/>}
+                  width:3, borderRadius:"0 2px 2px 0", background:"#F97316" }}/>}
                 <span style={{ fontSize:13, flexShrink:0 }}>{item.icon}</span>
                 {!collapsed && <>
                   <span style={{ fontSize:12, fontWeight:active?700:400, flex:1, textAlign:"left" }}>{item.label}</span>
@@ -3662,69 +3662,69 @@ export default function App() {
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
         {/* Topbar */}
-        <div style={{ height:56, background:"#FFFFFF", borderBottom:"1px solid #E2E8F0",
+        <div style={{ height:56, background:"#111111", borderBottom:"1px solid #2A2A2A",
           display:"flex", alignItems:"center", padding:"0 22px", gap:14, flexShrink:0 }}>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:9, color:"#94A3B8", letterSpacing:"0.06em", textTransform:"uppercase" }}>
+            <div style={{ fontSize:9, color:"#A3A3A3", letterSpacing:"0.06em", textTransform:"uppercase" }}>
               {companyName}
             </div>
-            <div style={{ fontSize:14, fontWeight:800, color:"#1E293B", fontFamily:font }}>
+            <div style={{ fontSize:14, fontWeight:800, color:"#FFFFFF", fontFamily:font }}>
               {pageLabels[page] || "Dashboard"}
             </div>
           </div>
 
           {/* Search */}
-          <div style={{ display:"flex", alignItems:"center", gap:8, background:"#F8FAFC",
-            border:"1px solid #E2E8F0", borderRadius:9, padding:"7px 13px", width:220 }}>
-            <span style={{ color:"#94A3B8", fontSize:12 }}>⌕</span>
+          <div style={{ display:"flex", alignItems:"center", gap:8, background:"#1A1A1A",
+            border:"1px solid #2A2A2A", borderRadius:9, padding:"7px 13px", width:220 }}>
+            <span style={{ color:"#525252", fontSize:12 }}>⌕</span>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
               style={{ background:"none", border:"none", outline:"none",
-                color:"#1E293B", fontSize:11, width:"100%" }}/>
-            <span style={{ fontSize:9, color:"#94A3B8", background:"#E2E8F0",
+                color:"#FFFFFF", fontSize:11, width:"100%" }}/>
+            <span style={{ fontSize:9, color:"#525252", background:"#2A2A2A",
               padding:"1px 5px", borderRadius:4 }}>⌘K</span>
           </div>
 
           {/* New Entry */}
           <button style={{ padding:"8px 16px", borderRadius:9, border:"none",
-            background:"#2563EB", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer",
+            background:"#F97316", color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer",
             display:"flex", alignItems:"center", gap:5,
-            boxShadow:"0 2px 8px rgba(37,99,235,0.3)" }}>
+            boxShadow:"0 2px 8px rgba(249,115,22,0.3)" }}>
             + New Entry
           </button>
 
           {/* Notification bell */}
           <div style={{ position:"relative" }}>
             <button onClick={()=>setShowNotif(!showNotif)} style={{
-              width:36, height:36, borderRadius:9, border:"1px solid #E2E8F0",
-              background:"#F8FAFC", cursor:"pointer", fontSize:15,
+              width:36, height:36, borderRadius:9, border:"1px solid #2A2A2A",
+              background:"#1A1A1A", cursor:"pointer", fontSize:15,
               display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
               🔔
               <div style={{ position:"absolute", top:7, right:8, width:6, height:6,
-                borderRadius:"50%", background:"#EF4444", border:"1px solid #fff" }}/>
+                borderRadius:"50%", background:"#EF4444", border:"1px solid #111111" }}/>
             </button>
             {showNotif && (
               <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, width:290,
-                background:"#fff", border:"1px solid #E2E8F0", borderRadius:12,
-                overflow:"hidden", zIndex:300, boxShadow:"0 8px 30px rgba(0,0,0,0.12)" }}>
-                <div style={{ padding:"12px 16px", borderBottom:"1px solid #E2E8F0",
+                background:"#111111", border:"1px solid #2A2A2A", borderRadius:12,
+                overflow:"hidden", zIndex:300, boxShadow:"0 8px 30px rgba(0,0,0,0.5)" }}>
+                <div style={{ padding:"12px 16px", borderBottom:"1px solid #2A2A2A",
                   display:"flex", justifyContent:"space-between" }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:"#1E293B" }}>Notifications</span>
-                  <span style={{ fontSize:10, color:"#2563EB", cursor:"pointer" }}>Mark all read</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#FFFFFF" }}>Notifications</span>
+                  <span style={{ fontSize:10, color:"#F97316", cursor:"pointer" }}>Mark all read</span>
                 </div>
                 {[
                   { icon:"⚠", c:"#EF4444", msg:"INV-0840 Emirates NBD is overdue", t:"2h ago" },
-                  { icon:"✓", c:"#10B981", msg:"BILL-0391 approved by Finance Manager", t:"4h ago" },
-                  { icon:"⊛", c:"#F59E0B", msg:"VAT Q4 return due in 10 days", t:"1d ago" },
-                  { icon:"⊠", c:"#2563EB", msg:"HP EliteBook 840 stock below reorder", t:"2d ago" },
+                  { icon:"✓", c:"#22C55E", msg:"BILL-0391 approved by Finance Manager", t:"4h ago" },
+                  { icon:"⊛", c:"#A855F7", msg:"VAT Q4 return due in 10 days", t:"1d ago" },
+                  { icon:"⊠", c:"#6366F1", msg:"HP EliteBook 840 stock below reorder", t:"2d ago" },
                 ].map((n,i)=>(
                   <div key={i} style={{ display:"flex", gap:10, padding:"11px 16px",
-                    alignItems:"flex-start", borderBottom:"1px solid #F1F5F9", cursor:"pointer" }}
-                    onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
+                    alignItems:"flex-start", borderBottom:"1px solid #2A2A2A", cursor:"pointer" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#1A1A1A"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span style={{ fontSize:13, color:n.c, marginTop:1 }}>{n.icon}</span>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:11, color:"#1E293B", lineHeight:1.4 }}>{n.msg}</div>
-                      <div style={{ fontSize:9, color:"#94A3B8", marginTop:3 }}>{n.t}</div>
+                      <div style={{ fontSize:11, color:"#FFFFFF", lineHeight:1.4 }}>{n.msg}</div>
+                      <div style={{ fontSize:9, color:"#525252", marginTop:3 }}>{n.t}</div>
                     </div>
                   </div>
                 ))}
@@ -3735,27 +3735,27 @@ export default function App() {
           {/* User avatar + logout */}
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#1E293B" }}>{user?.name || "User"}</div>
-              <div style={{ fontSize:9, color:"#94A3B8", textTransform:"capitalize" }}>{user?.role || "admin"}</div>
+              <div style={{ fontSize:11, fontWeight:700, color:"#FFFFFF" }}>{user?.name || "User"}</div>
+              <div style={{ fontSize:9, color:"#A3A3A3", textTransform:"capitalize" }}>{user?.role || "admin"}</div>
             </div>
             <div style={{ width:34, height:34, borderRadius:9,
-              background:"linear-gradient(135deg, #2563EB, #1E40AF)",
+              background:"linear-gradient(135deg, #F97316, #EA6C0A)",
               display:"flex", alignItems:"center", justifyContent:"center",
               fontSize:11, fontWeight:800, color:"#fff", cursor:"pointer",
-              boxShadow:"0 2px 8px rgba(37,99,235,0.3)" }}>
+              boxShadow:"0 2px 8px rgba(249,115,22,0.3)" }}>
               {userInitials}
             </div>
             <button
               onClick={logout}
               style={{
-                padding:"7px 14px", borderRadius:8, border:"1px solid #FECACA",
-                background:"#FEF2F2", cursor:"pointer", fontSize:12, fontWeight:600,
-                color:"#DC2626", display:"flex", alignItems:"center", gap:6,
+                padding:"7px 14px", borderRadius:8, border:"1px solid #2A2A2A",
+                background:"#1A1A1A", cursor:"pointer", fontSize:12, fontWeight:600,
+                color:"#EF4444", display:"flex", alignItems:"center", gap:6,
                 fontFamily:"'DM Sans','Segoe UI',system-ui,sans-serif",
                 transition:"all 0.15s",
               }}
-              onMouseEnter={e=>{ e.currentTarget.style.background="#FEE2E2"; e.currentTarget.style.borderColor="#FCA5A5"; }}
-              onMouseLeave={e=>{ e.currentTarget.style.background="#FEF2F2"; e.currentTarget.style.borderColor="#FECACA"; }}
+              onMouseEnter={e=>{ e.currentTarget.style.background="#2A0000"; e.currentTarget.style.borderColor="#EF4444"; }}
+              onMouseLeave={e=>{ e.currentTarget.style.background="#1A1A1A"; e.currentTarget.style.borderColor="#2A2A2A"; }}
             >
               <span style={{ fontSize:14 }}>⏻</span> Logout
             </button>
@@ -3763,7 +3763,7 @@ export default function App() {
         </div>
 
         {/* Page Content */}
-        <div style={{ flex:1, overflowY:"auto", padding:22, background:"#F1F5F9" }}>
+        <div style={{ flex:1, overflowY:"auto", padding:22, background:"#0A0A0A" }}>
           {renderPage()}
         </div>
       </div>

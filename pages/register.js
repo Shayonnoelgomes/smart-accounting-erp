@@ -2,21 +2,21 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 
 const B = {
-  bg:          "#F8FAFC",
-  white:       "#FFFFFF",
-  blue:        "#2563EB",
-  blueDk:      "#1E40AF",
-  blueLt:      "#EFF6FF",
-  text:        "#1E293B",
-  textMid:     "#64748B",
-  textLt:      "#94A3B8",
-  border:      "#E2E8F0",
-  success:     "#10B981",
-  successBg:   "#ECFDF5",
-  successBorder:"#6EE7B7",
-  errorBg:     "#FEF2F2",
-  errorBorder: "#FCA5A5",
-  errorText:   "#DC2626",
+  bg:           "#0A0A0A",
+  surface:      "#111111",
+  raised:       "#1A1A1A",
+  orange:       "#F97316",
+  orangeDk:     "#EA6C0A",
+  text:         "#FFFFFF",
+  textMid:      "#A3A3A3",
+  textDim:      "#525252",
+  border:       "#2A2A2A",
+  success:      "#22C55E",
+  successBg:    "#001A0A",
+  successBorder:"#22C55E",
+  errorBg:      "#2A0000",
+  errorBorder:  "#EF4444",
+  errorText:    "#EF4444",
 };
 const sans = "'DM Sans','Segoe UI',system-ui,sans-serif";
 const mono = "'IBM Plex Mono','Fira Code',monospace";
@@ -26,16 +26,16 @@ function Field({ label, type="text", value, onChange, placeholder, autoComplete,
   const [focused, setFocused] = useState(false);
   return (
     <div>
-      <label style={{ display:"block", fontSize:13, fontWeight:600, color:B.text, marginBottom:7 }}>
+      <label style={{ display:"block", fontSize:13, fontWeight:600, color:B.textMid, marginBottom:7 }}>
         {label}
       </label>
       <input
         type={type} value={value} onChange={e=>onChange(e.target.value)}
         placeholder={placeholder} autoComplete={autoComplete}
         style={{
-          width:"100%", background:B.white,
-          border:`1.5px solid ${focused ? B.blue : B.border}`,
-          boxShadow: focused ? `0 0 0 3px ${B.blue}1A` : "none",
+          width:"100%", background:B.raised,
+          border:`1.5px solid ${focused ? B.orange : B.border}`,
+          boxShadow: focused ? `0 0 0 3px rgba(249,115,22,0.15)` : "none",
           borderRadius:10, padding:"11px 14px", color:B.text, fontSize:14,
           outline:"none", boxSizing:"border-box", fontFamily:sans,
           transition:"border-color 0.15s, box-shadow 0.15s",
@@ -52,7 +52,7 @@ function StrengthBar({ password }) {
   const len = password.length;
   const score = len === 0 ? 0 : len < 6 ? 1 : len < 8 ? 2 : len < 12 ? 3 : 4;
   const labels = ["", "Weak", "Fair", "Good", "Strong"];
-  const colors = ["", "#EF4444", "#F59E0B", "#3B82F6", "#10B981"];
+  const colors = ["", "#EF4444", "#F97316", "#F97316", "#22C55E"];
   if (!password) return null;
   return (
     <div style={{ marginTop:8 }}>
@@ -107,43 +107,43 @@ export default function Register() {
   };
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh", fontFamily:sans }}>
+    <div style={{ display:"flex", minHeight:"100vh", fontFamily:sans, background:B.bg }}>
 
       {/* ── LEFT PANEL ── */}
       <div style={{
         display:"flex", flexDirection:"column", justifyContent:"space-between",
         width:"40%", minHeight:"100vh", padding:"48px 44px",
-        background:`linear-gradient(145deg, ${B.blueDk} 0%, ${B.blue} 100%)`,
+        background:"#111111",
+        borderRight:`1px solid ${B.border}`,
         position:"relative", overflow:"hidden",
       }}>
         <div style={{ position:"absolute", top:-60, right:-60, width:280, height:280,
-          borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
+          borderRadius:"50%", background:"rgba(249,115,22,0.06)", pointerEvents:"none" }}/>
         <div style={{ position:"absolute", bottom:-80, left:-40, width:320, height:320,
-          borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }}/>
+          borderRadius:"50%", background:"rgba(249,115,22,0.04)", pointerEvents:"none" }}/>
 
         {/* Logo */}
         <div style={{ position:"relative", zIndex:1 }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             <div style={{
-              width:40, height:40, borderRadius:10, background:"rgba(255,255,255,0.15)",
-              border:"1px solid rgba(255,255,255,0.25)",
+              width:40, height:40, borderRadius:10, background:"#F97316",
               display:"flex", alignItems:"center", justifyContent:"center",
               fontSize:18, fontWeight:900, color:"#fff", fontFamily:mono,
             }}>S</div>
             <div>
-              <div style={{ fontSize:16, fontWeight:800, color:"#fff", letterSpacing:"-0.01em" }}>SmartAccounting</div>
-              <div style={{ fontSize:10, color:"rgba(255,255,255,0.6)", letterSpacing:"0.08em" }}>ERP · v2.0</div>
+              <div style={{ fontSize:16, fontWeight:800, color:"#FFFFFF", letterSpacing:"-0.01em" }}>SmartAccounting</div>
+              <div style={{ fontSize:10, color:"#F97316", letterSpacing:"0.08em" }}>ERP · v2.0</div>
             </div>
           </div>
         </div>
 
         {/* Middle */}
         <div style={{ position:"relative", zIndex:1 }}>
-          <h2 style={{ margin:"0 0 12px", fontSize:28, fontWeight:800, color:"#fff",
+          <h2 style={{ margin:"0 0 12px", fontSize:28, fontWeight:800, color:"#FFFFFF",
             lineHeight:1.25, letterSpacing:"-0.02em" }}>
             Start your free<br/>account today.
           </h2>
-          <p style={{ margin:"0 0 36px", fontSize:14, color:"rgba(255,255,255,0.72)", lineHeight:1.65 }}>
+          <p style={{ margin:"0 0 36px", fontSize:14, color:B.textMid, lineHeight:1.65 }}>
             Join thousands of businesses managing their finances smarter with SmartAccounting ERP.
           </p>
           {[
@@ -153,16 +153,17 @@ export default function Register() {
             "Export reports anytime",
           ].map(item=>(
             <div key={item} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:13 }}>
-              <div style={{ width:20, height:20, borderRadius:"50%", background:"rgba(255,255,255,0.15)",
+              <div style={{ width:20, height:20, borderRadius:"50%", background:"rgba(249,115,22,0.2)",
+                border:"1px solid rgba(249,115,22,0.4)",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:10, color:"#fff", flexShrink:0 }}>✓</div>
-              <span style={{ fontSize:13, color:"rgba(255,255,255,0.85)" }}>{item}</span>
+                fontSize:10, color:"#F97316", flexShrink:0 }}>✓</div>
+              <span style={{ fontSize:13, color:B.textMid }}>{item}</span>
             </div>
           ))}
         </div>
 
         <div style={{ position:"relative", zIndex:1 }}>
-          <p style={{ margin:0, fontSize:12, color:"rgba(255,255,255,0.4)" }}>
+          <p style={{ margin:0, fontSize:12, color:B.textDim }}>
             © 2025 SmartAccounting ERP · Secure · SOC 2 Compliant
           </p>
         </div>
@@ -185,9 +186,9 @@ export default function Register() {
           </div>
 
           <div style={{
-            background:B.white, borderRadius:16, padding:"30px",
+            background:B.surface, borderRadius:16, padding:"30px",
             border:`1px solid ${B.border}`,
-            boxShadow:"0 4px 24px rgba(0,0,0,0.06)",
+            boxShadow:"0 4px 24px rgba(0,0,0,0.4)",
           }}>
             {success ? (
               <div style={{ textAlign:"center", padding:"20px 0" }}>
@@ -240,23 +241,23 @@ export default function Register() {
                   type="submit" disabled={loading}
                   style={{
                     width:"100%", padding:"13px", borderRadius:10, border:"none",
-                    background: loading ? `${B.blue}99` : B.blue,
+                    background: loading ? `rgba(249,115,22,0.5)` : B.orange,
                     color:"#fff", fontWeight:700, fontSize:14,
                     cursor:loading?"not-allowed":"pointer", fontFamily:sans,
-                    boxShadow: loading ? "none" : `0 4px 14px ${B.blue}40`,
+                    boxShadow: loading ? "none" : `0 4px 14px rgba(249,115,22,0.4)`,
                     transition:"all 0.15s",
                   }}
-                  onMouseEnter={e=>{ if(!loading) e.target.style.background=B.blueDk; }}
-                  onMouseLeave={e=>{ if(!loading) e.target.style.background=B.blue; }}
+                  onMouseEnter={e=>{ if(!loading) e.target.style.background=B.orangeDk; }}
+                  onMouseLeave={e=>{ if(!loading) e.target.style.background=B.orange; }}
                 >
                   {loading ? "Creating account…" : "Create account →"}
                 </button>
 
                 <p style={{ margin:0, fontSize:12, color:B.textMid, textAlign:"center" }}>
                   By creating an account you agree to our{" "}
-                  <span style={{ color:B.blue, cursor:"pointer" }}>Terms of Service</span>
+                  <span style={{ color:B.orange, cursor:"pointer" }}>Terms of Service</span>
                   {" "}and{" "}
-                  <span style={{ color:B.blue, cursor:"pointer" }}>Privacy Policy</span>.
+                  <span style={{ color:B.orange, cursor:"pointer" }}>Privacy Policy</span>.
                 </p>
               </form>
             )}
@@ -265,7 +266,7 @@ export default function Register() {
           <p style={{ textAlign:"center", marginTop:22, fontSize:13, color:B.textMid }}>
             Already have an account?{" "}
             <span onClick={()=>router.push("/login")}
-              style={{ color:B.blue, cursor:"pointer", fontWeight:600,
+              style={{ color:B.orange, cursor:"pointer", fontWeight:600,
                 textDecoration:"underline", textUnderlineOffset:3 }}>
               Sign in
             </span>
